@@ -33,7 +33,7 @@ MainFrameBaseClass::MainFrameBaseClass(wxWindow* parent, wxWindowID id, const wx
     m_mainPanel->SetSizer(boxSizer11);
 
     m_notebook121 = new wxNotebook(m_mainPanel, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_mainPanel, wxSize(-1, -1)),
-                                   wxNB_FIXEDWIDTH | wxBK_LEFT);
+                                   wxNB_FIXEDWIDTH);
     m_notebook121->SetName(wxT("m_notebook121"));
 
     boxSizer11->Add(m_notebook121, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
@@ -45,11 +45,11 @@ MainFrameBaseClass::MainFrameBaseClass(wxWindow* parent, wxWindowID id, const wx
     wxBoxSizer* boxSizer89 = new wxBoxSizer(wxVERTICAL);
     m_panel123->SetSizer(boxSizer89);
 
-    m_toolbar53 = new wxToolBar(m_panel123, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panel123, wxSize(-1, -1)),
-                                wxTB_NODIVIDER | wxTB_FLAT);
+    m_toolbar53 =
+        new wxToolBar(m_panel123, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panel123, wxSize(-1, -1)), wxTB_FLAT);
     m_toolbar53->SetToolBitmapSize(wxSize(16, 16));
 
-    boxSizer89->Add(m_toolbar53, 0, 0, WXC_FROM_DIP(5));
+    boxSizer89->Add(m_toolbar53, 0, wxEXPAND, WXC_FROM_DIP(5));
 
     m_toolbar53->AddTool(wxID_NEW, _("New Cluster"), wxXmlResource::Get()->LoadBitmap(wxT("new")), wxNullBitmap,
                          wxITEM_NORMAL, _("New Cluster"), _("New Cluster"), NULL);
