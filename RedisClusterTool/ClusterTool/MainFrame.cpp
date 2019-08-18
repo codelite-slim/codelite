@@ -19,7 +19,7 @@ MainFrame::MainFrame(wxWindow* parent)
         ClusterPage* p = new ClusterPage(m_notebook, &conf);
         m_notebook->AddPage(p, p->GetClusterName(), false);
     }
-//    m_listbook85->GetListView()->SetColumnWidth(0, 300);
+    //    m_listbook85->GetListView()->SetColumnWidth(0, 300);
     Layout();
 }
 
@@ -85,11 +85,17 @@ void MainFrame::OnDeploy(wxCommandEvent& event)
 {
     ClusterPage* page = GetActivePage();
     if(!page) { return; }
+    if(page->GetClusterPath().IsEmpty() || page->GetClusterPath() == "/" ||
+       !wxFileName::DirExists(page->GetClusterPath())) {
+        wxMessageBox("Invalid or empty path", "Error", wxICON_ERROR | wxCENTER);
+        return;
+    }
 
     ClusterConfig conf(page);
+
     conf.Deploy();
-    ::wxMessageBox(
-        wxString() << "'" << conf.GetName() << "' configuration files were created at " << conf.GetDeploymentPath());
+    ::wxMessageBox(wxString() << "'" << conf.GetName() << "' configuration files were created at "
+                              << conf.GetDeploymentPath());
 }
 
 ClusterPage* MainFrame::GetActivePage()
@@ -114,10 +120,14 @@ void MainFrame::OnRunInstances(wxCommandEvent& event)
     // Execute the instances
     ClusterPage* page = GetActivePage();
     if(!page) { return; }
+    if(page->GetClusterPath().IsEmpty() || page->GetClusterPath() == "/" ||
+       !wxFileName::DirExists(page->GetClusterPath())) {
+        wxMessageBox("Invalid or empty path", "Error", wxICON_ERROR | wxCENTER);
+        return;
+    }
     ClusterConfig conf(page);
+
     conf.Run();
 }
 
-void MainFrame::OnRunUI(wxUpdateUIEvent& event)
-{
-}
+void MainFrame::OnRunUI(wxUpdateUIEvent& event) {}

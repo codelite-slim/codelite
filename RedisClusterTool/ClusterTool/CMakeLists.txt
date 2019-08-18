@@ -9,12 +9,12 @@ project(ClusterTool)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 # Set default locations
-set(CL_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../cmake-build-Debug_Windows/output)
+set(CL_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../cmake-build-Debug_Ubuntu/output)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 
-set(CONFIGURATION_NAME "Debug_Windows")
+set(CONFIGURATION_NAME "Debug_Ubuntu")
 
 # Projects
 
@@ -50,11 +50,10 @@ add_definitions(-O0)
 add_definitions(-Wall)
 add_definitions(-std=c++11)
 add_definitions(
-    -DHAVE_W32API_H
-    -D__WXMSW__
-    -DNDEBUG
-    -D_UNICODE
+    -D_FILE_OFFSET_BITS=64
+    -DwxDEBUG_LEVEL=0
     -DWXUSINGDLL
+    -D__WXGTK__
 )
 
 
@@ -66,7 +65,6 @@ execute_process(COMMAND
     OUTPUT_STRIP_TRAILING_WHITESPACE)
 string(STRIP ${CL_TMP_VAR} CL_VAR_2)
 set(LINK_OPTIONS ${CL_VAR_2})
-set(LINK_OPTIONS ${LINK_OPTIONS} -mwindows)
 
 
 if(WIN32)
@@ -87,14 +85,14 @@ link_directories(
 
 # Define the CXX sources
 set ( CXX_SRCS
-    ${CMAKE_CURRENT_LIST_DIR}/ClusterConfig.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/Utils.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/wxcrafter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/SettingsDlg.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/Utils.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ClusterConfig.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ClusterPage.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/wxcrafter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/main.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/MainFrame.cpp
     ${CMAKE_CURRENT_LIST_DIR}/wxcrafter_bitmaps.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/MainFrame.cpp
 )
 
 if(WIN32)
@@ -106,7 +104,7 @@ endif(WIN32)
 
 set_source_files_properties(
     ${CXX_SRCS} PROPERTIES COMPILE_FLAGS 
-    " -g -O0 -Wall -mthreads -Wno-ctor-dtor-privacy -pipe -fmessage-length=0 -fno-keep-inline-dllexport  -std=c++11")
+    " -g -O0 -Wall -pthread -std=c++11")
 
 if(WIN32)
     enable_language(RC)
