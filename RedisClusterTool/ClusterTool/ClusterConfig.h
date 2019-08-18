@@ -1,0 +1,79 @@
+#ifndef CLUSTERCONFIG_H
+#define CLUSTERCONFIG_H
+
+#include <wx/arrstr.h>
+#include <wx/string.h>
+#include <wx/filename.h>
+
+class ClusterPage;
+class ClusterConfig
+{
+public:
+    enum eFlags { kEnableReplica = (1 << 0) };
+
+protected:
+    wxString m_name;
+    wxString m_path;
+    int m_firstPort = 7000;
+    int m_size = 6;
+    int m_flags = kEnableReplica;
+
+protected:
+    wxString GetPrefix() const;
+
+public:
+    ClusterConfig(const wxString& name = "");
+    ClusterConfig(ClusterPage* win);
+    ~ClusterConfig();
+
+    void Load();
+    void Save();
+    void Deploy();
+    void Run();
+    
+    static wxArrayString GetAllClusters();
+    static void SetClusters(const wxArrayString& arr);
+
+    wxString GetDeploymentPath() const;
+    bool HasFlag(ClusterConfig::eFlags flag) const { return m_flags & flag; }
+
+    void SetHasReplica(bool b)
+    {
+        if(b) {
+            m_flags |= kEnableReplica;
+        } else {
+            m_flags &= ~kEnableReplica;
+        }
+    }
+
+    bool HasReplica() const { return m_flags & kEnableReplica; }
+
+    ClusterConfig& SetFirstPort(int firstPort)
+    {
+        this->m_firstPort = firstPort;
+        return *this;
+    }
+    ClusterConfig& SetName(const wxString& name)
+    {
+        this->m_name = name;
+        return *this;
+    }
+    ClusterConfig& SetPath(const wxString& path)
+    {
+        this->m_path = path;
+        return *this;
+    }
+    ClusterConfig& SetSize(int size)
+    {
+        this->m_size = size;
+        return *this;
+    }
+    int GetFirstPort() const { return m_firstPort; }
+    int GetFlags() const { return m_flags; }
+    const wxString& GetName() const { return m_name; }
+    const wxString& GetPath() const { return m_path; }
+    int GetSize() const { return m_size; }
+    wxString GetRedisConfigFileName(int port) const;
+};
+
+#endif // CLUSTERCONFIG_H
