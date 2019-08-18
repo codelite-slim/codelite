@@ -11,12 +11,8 @@ extern void wxC9ED9InitBitmapResources();
 
 static bool bBitmapLoaded = false;
 
-MainFrameBaseClass::MainFrameBaseClass(wxWindow* parent,
-    wxWindowID id,
-    const wxString& title,
-    const wxPoint& pos,
-    const wxSize& size,
-    long style)
+MainFrameBaseClass::MainFrameBaseClass(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos,
+                                       const wxSize& size, long style)
     : wxFrame(parent, id, title, pos, size, style)
 {
     if(!bBitmapLoaded) {
@@ -36,49 +32,49 @@ MainFrameBaseClass::MainFrameBaseClass(wxWindow* parent,
     wxBoxSizer* boxSizer11 = new wxBoxSizer(wxVERTICAL);
     m_mainPanel->SetSizer(boxSizer11);
 
-    m_listbook85 = new wxListbook(m_mainPanel, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_mainPanel, wxSize(150, -1)),
-        wxLB_BOTTOM | wxLB_TOP | wxLB_DEFAULT);
-    m_listbook85->SetName(wxT("m_listbook85"));
+    m_notebook121 = new wxNotebook(m_mainPanel, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_mainPanel, wxSize(-1, -1)),
+                                   wxNB_FIXEDWIDTH | wxBK_LEFT);
+    m_notebook121->SetName(wxT("m_notebook121"));
 
-    boxSizer11->Add(m_listbook85, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+    boxSizer11->Add(m_notebook121, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
 
-    m_panel87 = new wxPanel(
-        m_listbook85, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_listbook85, wxSize(-1, -1)), wxTAB_TRAVERSAL);
-    m_listbook85->AddPage(m_panel87, _("Clusters"), true);
+    m_panel123 = new wxPanel(m_notebook121, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_notebook121, wxSize(-1, -1)),
+                             wxTAB_TRAVERSAL);
+    m_notebook121->AddPage(m_panel123, _("Clusters"), true);
 
     wxBoxSizer* boxSizer89 = new wxBoxSizer(wxVERTICAL);
-    m_panel87->SetSizer(boxSizer89);
+    m_panel123->SetSizer(boxSizer89);
 
-    m_toolbar53 = new wxToolBar(
-        m_panel87, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panel87, wxSize(-1, -1)), wxTB_NODIVIDER | wxTB_FLAT);
+    m_toolbar53 = new wxToolBar(m_panel123, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panel123, wxSize(-1, -1)),
+                                wxTB_NODIVIDER | wxTB_FLAT);
     m_toolbar53->SetToolBitmapSize(wxSize(16, 16));
 
     boxSizer89->Add(m_toolbar53, 0, 0, WXC_FROM_DIP(5));
 
     m_toolbar53->AddTool(wxID_NEW, _("New Cluster"), wxXmlResource::Get()->LoadBitmap(wxT("new")), wxNullBitmap,
-        wxITEM_NORMAL, _("New Cluster"), _("New Cluster"), NULL);
+                         wxITEM_NORMAL, _("New Cluster"), _("New Cluster"), NULL);
 
     m_toolbar53->AddTool(wxID_SAVE, _("Save"), wxXmlResource::Get()->LoadBitmap(wxT("save")), wxNullBitmap,
-        wxITEM_NORMAL, _("Save"), _("Save"), NULL);
+                         wxITEM_NORMAL, _("Save"), _("Save"), NULL);
 
     m_toolbar53->AddTool(wxID_DEPLOY, _("Deploy"), wxXmlResource::Get()->LoadBitmap(wxT("deploy")), wxNullBitmap,
-        wxITEM_NORMAL, _("Deploy"), _("Deploy"), NULL);
+                         wxITEM_NORMAL, _("Deploy"), _("Deploy"), NULL);
 
     m_toolbar53->AddSeparator();
 
     m_toolbar53->AddTool(wxID_EXECUTE, _("Run Cluster"), wxXmlResource::Get()->LoadBitmap(wxT("start")), wxNullBitmap,
-        wxITEM_NORMAL, _("Run Cluster"), _("Run Cluster"), NULL);
+                         wxITEM_NORMAL, _("Run Cluster"), _("Run Cluster"), NULL);
     m_toolbar53->Realize();
 
     m_notebook =
-        new wxNotebook(m_panel87, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panel87, wxSize(-1, -1)), wxBK_DEFAULT);
+        new wxNotebook(m_panel123, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panel123, wxSize(-1, -1)), wxBK_DEFAULT);
     m_notebook->SetName(wxT("m_notebook"));
 
     boxSizer89->Add(m_notebook, 1, wxEXPAND, WXC_FROM_DIP(5));
 
-    m_panel91 = new wxPanel(
-        m_listbook85, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_listbook85, wxSize(-1, -1)), wxTAB_TRAVERSAL);
-    m_listbook85->AddPage(m_panel91, _("Running Processes"), false);
+    m_panel125 = new wxPanel(m_notebook121, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_notebook121, wxSize(-1, -1)),
+                             wxTAB_TRAVERSAL);
+    m_notebook121->AddPage(m_panel125, _("Processes"), false);
 
     m_menuBar = new wxMenuBar(0);
     this->SetMenuBar(m_menuBar);
@@ -117,10 +113,10 @@ MainFrameBaseClass::MainFrameBaseClass(wxWindow* parent,
     Help->Append(m_menuItem9);
 
 #if wxVERSION_NUMBER >= 2900
-    if(!wxPersistenceManager::Get().Find(m_listbook85)) {
-        wxPersistenceManager::Get().RegisterAndRestore(m_listbook85);
+    if(!wxPersistenceManager::Get().Find(m_notebook121)) {
+        wxPersistenceManager::Get().RegisterAndRestore(m_notebook121);
     } else {
-        wxPersistenceManager::Get().Restore(m_listbook85);
+        wxPersistenceManager::Get().Restore(m_notebook121);
     }
 #endif
 
@@ -133,10 +129,8 @@ MainFrameBaseClass::MainFrameBaseClass(wxWindow* parent,
 #endif
 
     SetName(wxT("MainFrameBaseClass"));
-    SetSize(wxDLG_UNIT(this, wxSize(500, 300)));
-    if(GetSizer()) {
-        GetSizer()->Fit(this);
-    }
+    SetSize(wxDLG_UNIT(this, wxSize(600, 500)));
+    if(GetSizer()) { GetSizer()->Fit(this); }
     if(GetParent()) {
         CentreOnParent(wxBOTH);
     } else {
@@ -152,42 +146,42 @@ MainFrameBaseClass::MainFrameBaseClass(wxWindow* parent,
     // Connect events
     this->Connect(wxID_EXECUTE, wxEVT_UPDATE_UI, wxUpdateUIEventHandler(MainFrameBaseClass::OnRunUI), NULL, this);
     this->Connect(m_menuItemNew->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-        wxCommandEventHandler(MainFrameBaseClass::OnNewCluster), NULL, this);
+                  wxCommandEventHandler(MainFrameBaseClass::OnNewCluster), NULL, this);
     this->Connect(m_menuItemSave->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-        wxCommandEventHandler(MainFrameBaseClass::OnSave), NULL, this);
-    this->Connect(
-        m_menuItemSave->GetId(), wxEVT_UPDATE_UI, wxUpdateUIEventHandler(MainFrameBaseClass::OnSaveUI), NULL, this);
+                  wxCommandEventHandler(MainFrameBaseClass::OnSave), NULL, this);
+    this->Connect(m_menuItemSave->GetId(), wxEVT_UPDATE_UI, wxUpdateUIEventHandler(MainFrameBaseClass::OnSaveUI), NULL,
+                  this);
     this->Connect(m_menuItem7->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrameBaseClass::OnExit),
-        NULL, this);
+                  NULL, this);
     this->Connect(m_menuItemDeploy->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-        wxCommandEventHandler(MainFrameBaseClass::OnDeploy), NULL, this);
+                  wxCommandEventHandler(MainFrameBaseClass::OnDeploy), NULL, this);
     this->Connect(m_menuItemExecute->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-        wxCommandEventHandler(MainFrameBaseClass::OnRunInstances), NULL, this);
+                  wxCommandEventHandler(MainFrameBaseClass::OnRunInstances), NULL, this);
     this->Connect(m_menuItem115->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-        wxCommandEventHandler(MainFrameBaseClass::OnPreferences), NULL, this);
+                  wxCommandEventHandler(MainFrameBaseClass::OnPreferences), NULL, this);
     this->Connect(m_menuItem9->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrameBaseClass::OnAbout),
-        NULL, this);
+                  NULL, this);
 }
 
 MainFrameBaseClass::~MainFrameBaseClass()
 {
     this->Disconnect(wxID_EXECUTE, wxEVT_UPDATE_UI, wxUpdateUIEventHandler(MainFrameBaseClass::OnRunUI), NULL, this);
     this->Disconnect(m_menuItemNew->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-        wxCommandEventHandler(MainFrameBaseClass::OnNewCluster), NULL, this);
+                     wxCommandEventHandler(MainFrameBaseClass::OnNewCluster), NULL, this);
     this->Disconnect(m_menuItemSave->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-        wxCommandEventHandler(MainFrameBaseClass::OnSave), NULL, this);
-    this->Disconnect(
-        m_menuItemSave->GetId(), wxEVT_UPDATE_UI, wxUpdateUIEventHandler(MainFrameBaseClass::OnSaveUI), NULL, this);
+                     wxCommandEventHandler(MainFrameBaseClass::OnSave), NULL, this);
+    this->Disconnect(m_menuItemSave->GetId(), wxEVT_UPDATE_UI, wxUpdateUIEventHandler(MainFrameBaseClass::OnSaveUI),
+                     NULL, this);
     this->Disconnect(m_menuItem7->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-        wxCommandEventHandler(MainFrameBaseClass::OnExit), NULL, this);
+                     wxCommandEventHandler(MainFrameBaseClass::OnExit), NULL, this);
     this->Disconnect(m_menuItemDeploy->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-        wxCommandEventHandler(MainFrameBaseClass::OnDeploy), NULL, this);
+                     wxCommandEventHandler(MainFrameBaseClass::OnDeploy), NULL, this);
     this->Disconnect(m_menuItemExecute->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-        wxCommandEventHandler(MainFrameBaseClass::OnRunInstances), NULL, this);
+                     wxCommandEventHandler(MainFrameBaseClass::OnRunInstances), NULL, this);
     this->Disconnect(m_menuItem115->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-        wxCommandEventHandler(MainFrameBaseClass::OnPreferences), NULL, this);
+                     wxCommandEventHandler(MainFrameBaseClass::OnPreferences), NULL, this);
     this->Disconnect(m_menuItem9->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-        wxCommandEventHandler(MainFrameBaseClass::OnAbout), NULL, this);
+                     wxCommandEventHandler(MainFrameBaseClass::OnAbout), NULL, this);
 }
 
 ClusterPageBase::ClusterPageBase(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style)
@@ -229,7 +223,8 @@ ClusterPageBase::ClusterPageBase(wxWindow* parent, wxWindowID id, const wxPoint&
     flexGridSizer21->Add(m_staticText27, 0, wxALL | wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
 
     m_dirPicker = new wxDirPickerCtrl(this, wxID_ANY, wxEmptyString, _("Select a folder"), wxDefaultPosition,
-        wxDLG_UNIT(this, wxSize(-1, -1)), wxDIRP_SMALL | wxDIRP_DEFAULT_STYLE | wxDIRP_USE_TEXTCTRL);
+                                      wxDLG_UNIT(this, wxSize(-1, -1)),
+                                      wxDIRP_SMALL | wxDIRP_DEFAULT_STYLE | wxDIRP_USE_TEXTCTRL);
 
     flexGridSizer21->Add(m_dirPicker, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
 
@@ -238,8 +233,8 @@ ClusterPageBase::ClusterPageBase(wxWindow* parent, wxWindowID id, const wxPoint&
 
     flexGridSizer21->Add(m_staticText31, 0, wxALL | wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
 
-    m_spinCtrlPort = new wxSpinCtrl(
-        this, wxID_ANY, wxT("7000"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), wxSP_ARROW_KEYS);
+    m_spinCtrlPort = new wxSpinCtrl(this, wxID_ANY, wxT("7000"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)),
+                                    wxSP_ARROW_KEYS);
     m_spinCtrlPort->SetRange(7000, 60000);
     m_spinCtrlPort->SetValue(7000);
 
@@ -267,21 +262,13 @@ ClusterPageBase::ClusterPageBase(wxWindow* parent, wxWindowID id, const wxPoint&
 
     SetName(wxT("ClusterPageBase"));
     SetSize(wxDLG_UNIT(this, wxSize(500, 300)));
-    if(GetSizer()) {
-        GetSizer()->Fit(this);
-    }
+    if(GetSizer()) { GetSizer()->Fit(this); }
 }
 
-ClusterPageBase::~ClusterPageBase()
-{
-}
+ClusterPageBase::~ClusterPageBase() {}
 
-SettingsDlgBase::SettingsDlgBase(wxWindow* parent,
-    wxWindowID id,
-    const wxString& title,
-    const wxPoint& pos,
-    const wxSize& size,
-    long style)
+SettingsDlgBase::SettingsDlgBase(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos,
+                                 const wxSize& size, long style)
     : wxDialog(parent, id, title, pos, size, style)
 {
     if(!bBitmapLoaded) {
@@ -306,8 +293,9 @@ SettingsDlgBase::SettingsDlgBase(wxWindow* parent,
 
     flexGridSizer103->Add(m_staticText105, 0, wxALL | wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
 
-    m_filePickerServer = new wxFilePickerCtrl(this, wxID_ANY, wxEmptyString, _("Select a file"), wxT("*"),
-        wxDefaultPosition, wxDLG_UNIT(this, wxSize(300, -1)), wxFLP_DEFAULT_STYLE | wxFLP_USE_TEXTCTRL | wxFLP_SMALL);
+    m_filePickerServer =
+        new wxFilePickerCtrl(this, wxID_ANY, wxEmptyString, _("Select a file"), wxT("*"), wxDefaultPosition,
+                             wxDLG_UNIT(this, wxSize(300, -1)), wxFLP_DEFAULT_STYLE | wxFLP_USE_TEXTCTRL | wxFLP_SMALL);
 
     flexGridSizer103->Add(m_filePickerServer, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
 
@@ -316,8 +304,9 @@ SettingsDlgBase::SettingsDlgBase(wxWindow* parent,
 
     flexGridSizer103->Add(m_staticText109, 0, wxALL | wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
 
-    m_filePickerCli = new wxFilePickerCtrl(this, wxID_ANY, wxEmptyString, _("Select a file"), wxT("*"),
-        wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), wxFLP_DEFAULT_STYLE | wxFLP_USE_TEXTCTRL | wxFLP_SMALL);
+    m_filePickerCli =
+        new wxFilePickerCtrl(this, wxID_ANY, wxEmptyString, _("Select a file"), wxT("*"), wxDefaultPosition,
+                             wxDLG_UNIT(this, wxSize(-1, -1)), wxFLP_DEFAULT_STYLE | wxFLP_USE_TEXTCTRL | wxFLP_SMALL);
 
     flexGridSizer103->Add(m_filePickerCli, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
     m_filePickerCli->SetMinSize(wxSize(300, -1));
@@ -336,9 +325,7 @@ SettingsDlgBase::SettingsDlgBase(wxWindow* parent,
 
     SetName(wxT("SettingsDlgBase"));
     SetSize(wxDLG_UNIT(this, wxSize(-1, -1)));
-    if(GetSizer()) {
-        GetSizer()->Fit(this);
-    }
+    if(GetSizer()) { GetSizer()->Fit(this); }
     if(GetParent()) {
         CentreOnParent(wxBOTH);
     } else {
@@ -353,6 +340,4 @@ SettingsDlgBase::SettingsDlgBase(wxWindow* parent,
 #endif
 }
 
-SettingsDlgBase::~SettingsDlgBase()
-{
-}
+SettingsDlgBase::~SettingsDlgBase() {}

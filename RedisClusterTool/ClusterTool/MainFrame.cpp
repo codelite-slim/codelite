@@ -19,7 +19,7 @@ MainFrame::MainFrame(wxWindow* parent)
         ClusterPage* p = new ClusterPage(m_notebook, &conf);
         m_notebook->AddPage(p, p->GetClusterName(), false);
     }
-    m_listbook85->GetListView()->SetColumnWidth(0, 300);
+//    m_listbook85->GetListView()->SetColumnWidth(0, 300);
     Layout();
 }
 

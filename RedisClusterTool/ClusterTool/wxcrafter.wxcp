@@ -1,7 +1,7 @@
 {
 	"metadata":	{
 		"m_generatedFilesDir":	".",
-		"m_objCounter":	119,
+		"m_objCounter":	125,
 		"m_includeFiles":	[],
 		"m_bitmapFunction":	"wxC9ED9InitBitmapResources",
 		"m_bitmapsFile":	"wxcrafter_bitmaps.cpp",
@@ -24,7 +24,7 @@
 			"m_properties":	[{
 					"type":	"string",
 					"m_label":	"Size:",
-					"m_value":	"500,300"
+					"m_value":	"600,500"
 				}, {
 					"type":	"string",
 					"m_label":	"Minimum Size:",
@@ -250,12 +250,12 @@
 										}],
 									"m_events":	[],
 									"m_children":	[{
-											"m_type":	4444,
+											"m_type":	4442,
 											"proportion":	1,
 											"border":	5,
 											"gbSpan":	"1,1",
 											"gbPosition":	"0,0",
-											"m_styles":	["wxLB_BOTTOM", "wxLB_TOP", "wxLB_DEFAULT"],
+											"m_styles":	["wxNB_FIXEDWIDTH", "wxBK_LEFT"],
 											"m_sizerFlags":	["wxALL", "wxLEFT", "wxRIGHT", "wxTOP", "wxBOTTOM", "wxEXPAND"],
 											"m_properties":	[{
 													"type":	"winid",
@@ -264,7 +264,7 @@
 												}, {
 													"type":	"string",
 													"m_label":	"Size:",
-													"m_value":	"150,-1"
+													"m_value":	"-1,-1"
 												}, {
 													"type":	"string",
 													"m_label":	"Minimum Size:",
@@ -272,7 +272,7 @@
 												}, {
 													"type":	"string",
 													"m_label":	"Name:",
-													"m_value":	"m_listbook85"
+													"m_value":	"m_notebook121"
 												}, {
 													"type":	"multi-string",
 													"m_label":	"Tooltip:",
@@ -338,7 +338,7 @@
 														}, {
 															"type":	"string",
 															"m_label":	"Name:",
-															"m_value":	"m_panel87"
+															"m_value":	"m_panel123"
 														}, {
 															"type":	"multi-string",
 															"m_label":	"Tooltip:",
@@ -790,7 +790,7 @@
 														}, {
 															"type":	"string",
 															"m_label":	"Name:",
-															"m_value":	"m_panel91"
+															"m_value":	"m_panel125"
 														}, {
 															"type":	"multi-string",
 															"m_label":	"Tooltip:",
@@ -834,7 +834,7 @@
 														}, {
 															"type":	"string",
 															"m_label":	"Label:",
-															"m_value":	"Running Processes"
+															"m_value":	"Processes"
 														}, {
 															"type":	"bitmapPicker",
 															"m_label":	"Bitmap File:",

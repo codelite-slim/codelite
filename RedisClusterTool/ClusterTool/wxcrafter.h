@@ -16,10 +16,9 @@
 #include <wx/artprov.h>
 #include <wx/sizer.h>
 #include <wx/panel.h>
-#include <wx/listbook.h>
+#include <wx/notebook.h>
 #include <wx/imaglist.h>
 #include <wx/toolbar.h>
-#include <wx/notebook.h>
 #include <wx/menu.h>
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
@@ -55,11 +54,11 @@ public:
 
 protected:
     wxPanel* m_mainPanel;
-    wxListbook* m_listbook85;
-    wxPanel* m_panel87;
+    wxNotebook* m_notebook121;
+    wxPanel* m_panel123;
     wxToolBar* m_toolbar53;
     wxNotebook* m_notebook;
-    wxPanel* m_panel91;
+    wxPanel* m_panel125;
     wxMenuBar* m_menuBar;
     wxMenu* File;
     wxMenuItem* m_menuItemNew;
@@ -74,78 +73,28 @@ protected:
     wxMenuItem* m_menuItem9;
 
 protected:
-    virtual void OnRunUI(wxUpdateUIEvent& event)
-    {
-        event.Skip();
-    }
-    virtual void OnNewCluster(wxCommandEvent& event)
-    {
-        event.Skip();
-    }
-    virtual void OnSave(wxCommandEvent& event)
-    {
-        event.Skip();
-    }
-    virtual void OnSaveUI(wxUpdateUIEvent& event)
-    {
-        event.Skip();
-    }
-    virtual void OnExit(wxCommandEvent& event)
-    {
-        event.Skip();
-    }
-    virtual void OnDeploy(wxCommandEvent& event)
-    {
-        event.Skip();
-    }
-    virtual void OnRunInstances(wxCommandEvent& event)
-    {
-        event.Skip();
-    }
-    virtual void OnPreferences(wxCommandEvent& event)
-    {
-        event.Skip();
-    }
-    virtual void OnAbout(wxCommandEvent& event)
-    {
-        event.Skip();
-    }
+    virtual void OnRunUI(wxUpdateUIEvent& event) { event.Skip(); }
+    virtual void OnNewCluster(wxCommandEvent& event) { event.Skip(); }
+    virtual void OnSave(wxCommandEvent& event) { event.Skip(); }
+    virtual void OnSaveUI(wxUpdateUIEvent& event) { event.Skip(); }
+    virtual void OnExit(wxCommandEvent& event) { event.Skip(); }
+    virtual void OnDeploy(wxCommandEvent& event) { event.Skip(); }
+    virtual void OnRunInstances(wxCommandEvent& event) { event.Skip(); }
+    virtual void OnPreferences(wxCommandEvent& event) { event.Skip(); }
+    virtual void OnAbout(wxCommandEvent& event) { event.Skip(); }
 
 public:
-    wxToolBar* GetToolbar53()
-    {
-        return m_toolbar53;
-    }
-    wxNotebook* GetNotebook()
-    {
-        return m_notebook;
-    }
-    wxPanel* GetPanel87()
-    {
-        return m_panel87;
-    }
-    wxPanel* GetPanel91()
-    {
-        return m_panel91;
-    }
-    wxListbook* GetListbook85()
-    {
-        return m_listbook85;
-    }
-    wxPanel* GetMainPanel()
-    {
-        return m_mainPanel;
-    }
-    wxMenuBar* GetMenuBar()
-    {
-        return m_menuBar;
-    }
-    MainFrameBaseClass(wxWindow* parent,
-        wxWindowID id = wxID_ANY,
-        const wxString& title = _("My Frame"),
-        const wxPoint& pos = wxDefaultPosition,
-        const wxSize& size = wxSize(500, 300),
-        long style = wxCAPTION | wxRESIZE_BORDER | wxMAXIMIZE_BOX | wxMINIMIZE_BOX | wxSYSTEM_MENU | wxCLOSE_BOX);
+    wxToolBar* GetToolbar53() { return m_toolbar53; }
+    wxNotebook* GetNotebook() { return m_notebook; }
+    wxPanel* GetPanel123() { return m_panel123; }
+    wxPanel* GetPanel125() { return m_panel125; }
+    wxNotebook* GetNotebook121() { return m_notebook121; }
+    wxPanel* GetMainPanel() { return m_mainPanel; }
+    wxMenuBar* GetMenuBar() { return m_menuBar; }
+    MainFrameBaseClass(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("My Frame"),
+                       const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(600, 500),
+                       long style = wxCAPTION | wxRESIZE_BORDER | wxMAXIMIZE_BOX | wxMINIMIZE_BOX | wxSYSTEM_MENU |
+                                    wxCLOSE_BOX);
     virtual ~MainFrameBaseClass();
 };
 
@@ -164,47 +113,17 @@ protected:
 
 protected:
 public:
-    wxStaticText* GetStaticText23()
-    {
-        return m_staticText23;
-    }
-    wxTextCtrl* GetTextCtrlName()
-    {
-        return m_textCtrlName;
-    }
-    wxStaticText* GetStaticText27()
-    {
-        return m_staticText27;
-    }
-    wxDirPickerCtrl* GetDirPicker()
-    {
-        return m_dirPicker;
-    }
-    wxStaticText* GetStaticText31()
-    {
-        return m_staticText31;
-    }
-    wxSpinCtrl* GetSpinCtrlPort()
-    {
-        return m_spinCtrlPort;
-    }
-    wxStaticText* GetStaticText35()
-    {
-        return m_staticText35;
-    }
-    wxSpinCtrl* GetSpinCtrl37()
-    {
-        return m_spinCtrl37;
-    }
-    wxCheckBox* GetCheckBox45()
-    {
-        return m_checkBox45;
-    }
-    ClusterPageBase(wxWindow* parent,
-        wxWindowID id = wxID_ANY,
-        const wxPoint& pos = wxDefaultPosition,
-        const wxSize& size = wxSize(500, 300),
-        long style = wxTAB_TRAVERSAL);
+    wxStaticText* GetStaticText23() { return m_staticText23; }
+    wxTextCtrl* GetTextCtrlName() { return m_textCtrlName; }
+    wxStaticText* GetStaticText27() { return m_staticText27; }
+    wxDirPickerCtrl* GetDirPicker() { return m_dirPicker; }
+    wxStaticText* GetStaticText31() { return m_staticText31; }
+    wxSpinCtrl* GetSpinCtrlPort() { return m_spinCtrlPort; }
+    wxStaticText* GetStaticText35() { return m_staticText35; }
+    wxSpinCtrl* GetSpinCtrl37() { return m_spinCtrl37; }
+    wxCheckBox* GetCheckBox45() { return m_checkBox45; }
+    ClusterPageBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition,
+                    const wxSize& size = wxSize(500, 300), long style = wxTAB_TRAVERSAL);
     virtual ~ClusterPageBase();
 };
 
@@ -221,28 +140,13 @@ protected:
 
 protected:
 public:
-    wxStaticText* GetStaticText105()
-    {
-        return m_staticText105;
-    }
-    wxFilePickerCtrl* GetFilePickerServer()
-    {
-        return m_filePickerServer;
-    }
-    wxStaticText* GetStaticText109()
-    {
-        return m_staticText109;
-    }
-    wxFilePickerCtrl* GetFilePickerCli()
-    {
-        return m_filePickerCli;
-    }
-    SettingsDlgBase(wxWindow* parent,
-        wxWindowID id = wxID_ANY,
-        const wxString& title = _("Settings"),
-        const wxPoint& pos = wxDefaultPosition,
-        const wxSize& size = wxSize(-1, -1),
-        long style = wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
+    wxStaticText* GetStaticText105() { return m_staticText105; }
+    wxFilePickerCtrl* GetFilePickerServer() { return m_filePickerServer; }
+    wxStaticText* GetStaticText109() { return m_staticText109; }
+    wxFilePickerCtrl* GetFilePickerCli() { return m_filePickerCli; }
+    SettingsDlgBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Settings"),
+                    const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1, -1),
+                    long style = wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
     virtual ~SettingsDlgBase();
 };
 

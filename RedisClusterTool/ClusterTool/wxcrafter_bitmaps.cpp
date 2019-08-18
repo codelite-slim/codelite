@@ -198,6 +198,6 @@ void wxC9ED9InitBitmapResources()
     XRC_ADD_FILE(wxT("XRC_resource/wxcrafter_bitmaps.cpp$.._bitmaps_new.png"), xml_res_file_1, xml_res_size_1, wxT("image/png"));
     XRC_ADD_FILE(wxT("XRC_resource/wxcrafter_bitmaps.cpp$.._bitmaps_save.png"), xml_res_file_2, xml_res_size_2, wxT("image/png"));
     XRC_ADD_FILE(wxT("XRC_resource/wxcrafter_bitmaps.cpp$.._bitmaps_start.png"), xml_res_file_3, xml_res_size_3, wxT("image/png"));
-    XRC_ADD_FILE(wxT("XRC_resource/wxcrafter_bitmaps.cpp$_home_eran_devl_RedisClusterTool_ClusterTool_wxcrafter_bitmaps.xrc"), xml_res_file_4, xml_res_size_4, wxT("text/xml"));
-    wxXmlResource::Get()->Load(wxT("memory:XRC_resource/wxcrafter_bitmaps.cpp$_home_eran_devl_RedisClusterTool_ClusterTool_wxcrafter_bitmaps.xrc"));
+    XRC_ADD_FILE(wxT("XRC_resource/wxcrafter_bitmaps.cpp$C__src_codelite-slim_RedisClusterTool_ClusterTool_wxcrafter_bitmaps.xrc"), xml_res_file_4, xml_res_size_4, wxT("text/xml"));
+    wxXmlResource::Get()->Load(wxT("memory:XRC_resource/wxcrafter_bitmaps.cpp$C__src_codelite-slim_RedisClusterTool_ClusterTool_wxcrafter_bitmaps.xrc"));
 }
