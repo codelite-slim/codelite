@@ -16,9 +16,11 @@
 #include <wx/artprov.h>
 #include <wx/sizer.h>
 #include <wx/panel.h>
+#include <wx/splitter.h>
 #include <wx/notebook.h>
 #include <wx/imaglist.h>
 #include <wx/toolbar.h>
+#include <wx/stc/stc.h>
 #include <wx/menu.h>
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
@@ -54,11 +56,15 @@ public:
 
 protected:
     wxPanel* m_mainPanel;
+    wxSplitterWindow* m_splitter127;
+    wxPanel* m_splitterPage131;
     wxNotebook* m_notebook121;
     wxPanel* m_panel123;
     wxToolBar* m_toolbar53;
     wxNotebook* m_notebook;
     wxPanel* m_panel125;
+    wxPanel* m_splitterPage135;
+    wxStyledTextCtrl* m_stcLog;
     wxMenuBar* m_menuBar;
     wxMenu* File;
     wxMenuItem* m_menuItemNew;
@@ -89,6 +95,10 @@ public:
     wxPanel* GetPanel123() { return m_panel123; }
     wxPanel* GetPanel125() { return m_panel125; }
     wxNotebook* GetNotebook121() { return m_notebook121; }
+    wxPanel* GetSplitterPage131() { return m_splitterPage131; }
+    wxStyledTextCtrl* GetStcLog() { return m_stcLog; }
+    wxPanel* GetSplitterPage135() { return m_splitterPage135; }
+    wxSplitterWindow* GetSplitter127() { return m_splitter127; }
     wxPanel* GetMainPanel() { return m_mainPanel; }
     wxMenuBar* GetMenuBar() { return m_menuBar; }
     MainFrameBaseClass(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("My Frame"),

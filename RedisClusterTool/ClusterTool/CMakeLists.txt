@@ -9,12 +9,12 @@ project(cluster-tool)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 # Set default locations
-set(CL_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../cmake-build-Debug/output)
+set(CL_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../cmake-build-Debug_Windows/output)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 
-set(CONFIGURATION_NAME "Debug")
+set(CONFIGURATION_NAME "Debug_Windows")
 
 # Projects
 
@@ -59,21 +59,23 @@ add_definitions(-O0)
 add_definitions(-Wall)
 add_definitions(-std=c++11)
 add_definitions(
-    -D_FILE_OFFSET_BITS=64
-    -DwxDEBUG_LEVEL=0
+    -DHAVE_W32API_H
+    -D__WXMSW__
+    -DNDEBUG
+    -D_UNICODE
     -DWXUSINGDLL
-    -D__WXGTK__
 )
 
 
 # Linker options
 execute_process(COMMAND 
-    wx-config --libs
+    wx-config --libs std,stc
     OUTPUT_VARIABLE
     CL_TMP_VAR
     OUTPUT_STRIP_TRAILING_WHITESPACE)
 string(STRIP ${CL_TMP_VAR} CL_VAR_2)
 set(LINK_OPTIONS ${CL_VAR_2})
+set(LINK_OPTIONS ${LINK_OPTIONS} -mwindows)
 
 
 if(WIN32)
@@ -96,12 +98,12 @@ link_directories(
 set ( CXX_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/ClusterConfig.cpp
     ${CMAKE_CURRENT_LIST_DIR}/Utils.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/wxcrafter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/SettingsDlg.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ClusterPage.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/wxcrafter.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/main.cpp
     ${CMAKE_CURRENT_LIST_DIR}/MainFrame.cpp
     ${CMAKE_CURRENT_LIST_DIR}/wxcrafter_bitmaps.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/main.cpp
 )
 
 if(WIN32)
@@ -113,7 +115,7 @@ endif(WIN32)
 
 set_source_files_properties(
     ${CXX_SRCS} PROPERTIES COMPILE_FLAGS 
-    " -g -O0 -Wall -pthread -std=c++11")
+    " -g -O0 -Wall -mthreads -Wno-ctor-dtor-privacy -pipe -fmessage-length=0 -fno-keep-inline-dllexport  -std=c++11")
 
 if(WIN32)
     enable_language(RC)
@@ -133,33 +135,35 @@ target_link_libraries(cluster-tool ${LINK_OPTIONS})
 
 
 #{{{{ User Code 3
-set(EXE_PERM OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ)
-install(FILES ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/cluster-tool DESTINATION ${INSTALL_BIN_DIR} PERMISSIONS ${EXE_PERM})
-
-# We need to deduce the location of the wx libs to be installed
-set(WX_TOOL "/usr/local/bin/wx-config")
-execute_process(COMMAND ${WX_TOOL} --libs OUTPUT_VARIABLE WX_LIBSOUTPUT OUTPUT_STRIP_TRAILING_WHITESPACE)
-if (${WX_LIBSOUTPUT} MATCHES "^-L.+") # In recent, multi-architecture, distro versions it'll start with -L/foo/bar
-    string(REGEX REPLACE "^-L([^ ;]+).*" "\\1" WX_LIBS_DIR ${WX_LIBSOUTPUT})
-endif()
-message("-- wxlibsdir is: ${WX_LIBS_DIR}")
-
-# Grab the necessary libs
-execute_process(COMMAND ${WX_TOOL} --libs all OUTPUT_VARIABLE WX_LIBS_ALL_IN OUTPUT_STRIP_TRAILING_WHITESPACE)
-string(REPLACE " " ";" WX_LIBS_ALL_LIST ${WX_LIBS_ALL_IN}) # the semicolons make the variable into a list
-
-foreach(ITEM ${WX_LIBS_ALL_LIST})
-    # We want to replace -l with lib. We also want to exclude imaginary libs called _all.so, which buggy wx-config scripts can invent
-    if (${ITEM} MATCHES "-lwx_.+" AND NOT ${ITEM} MATCHES "-l.+_all.+")
-        string(REGEX REPLACE "^-l" "lib" LIBITEM ${ITEM}) 
-        # openSUSE have started to use libwx_gtk2u_xrc-suse.so instead of libwx_gtk2u_xrc-3.1, so allow for extra text there
-        string(REGEX REPLACE "(libwx_[a-z0-9._]+-)(.+)" "\\1*\\2" LIBITEMADJ ${LIBITEM})
-        list(APPEND WX_LIBS_ALL ${WX_LIBS_DIR}/${LIBITEMADJ}*.so*) # we need the terminal [.]so because the rpms contain both dynamic and static libs
+if(UNIX)
+    set(EXE_PERM OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ)
+    install(FILES ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/cluster-tool DESTINATION ${INSTALL_BIN_DIR} PERMISSIONS ${EXE_PERM})
+    # We need to deduce the location of the wx libs to be installed
+    set(WX_TOOL "/usr/local/bin/wx-config")
+    execute_process(COMMAND ${WX_TOOL} --libs OUTPUT_VARIABLE WX_LIBSOUTPUT OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if (${WX_LIBSOUTPUT} MATCHES "^-L.+") # In recent, multi-architecture, distro versions it'll start with -L/foo/bar
+        string(REGEX REPLACE "^-L([^ ;]+).*" "\\1" WX_LIBS_DIR ${WX_LIBSOUTPUT})
     endif()
-endforeach()
+    message("-- wxlibsdir is: ${WX_LIBS_DIR}")
 
-file(GLOB wxfilepaths ${WX_LIBS_ALL})
-install(FILES ${wxfilepaths} DESTINATION ${INSTALL_LIB_DIR})
+    # Grab the necessary libs
+    execute_process(COMMAND ${WX_TOOL} --libs all OUTPUT_VARIABLE WX_LIBS_ALL_IN OUTPUT_STRIP_TRAILING_WHITESPACE)
+    string(REPLACE " " ";" WX_LIBS_ALL_LIST ${WX_LIBS_ALL_IN}) # the semicolons make the variable into a list
+
+    foreach(ITEM ${WX_LIBS_ALL_LIST})
+        # We want to replace -l with lib. We also want to exclude imaginary libs called _all.so, which buggy wx-config scripts can invent
+        if (${ITEM} MATCHES "-lwx_.+" AND NOT ${ITEM} MATCHES "-l.+_all.+")
+            string(REGEX REPLACE "^-l" "lib" LIBITEM ${ITEM}) 
+            # openSUSE have started to use libwx_gtk2u_xrc-suse.so instead of libwx_gtk2u_xrc-3.1, so allow for extra text there
+            string(REGEX REPLACE "(libwx_[a-z0-9._]+-)(.+)" "\\1*\\2" LIBITEMADJ ${LIBITEM})
+            list(APPEND WX_LIBS_ALL ${WX_LIBS_DIR}/${LIBITEMADJ}*.so*) # we need the terminal [.]so because the rpms contain both dynamic and static libs
+        endif()
+    endforeach()
+
+    file(GLOB wxfilepaths ${WX_LIBS_ALL})
+    install(FILES ${wxfilepaths} DESTINATION ${INSTALL_LIB_DIR})
+
+endif(UNIX)
 
 #}}}}
 

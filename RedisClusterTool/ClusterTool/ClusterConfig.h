@@ -20,7 +20,8 @@ protected:
 
 protected:
     wxString GetPrefix() const;
-
+    void AddNodeToCluster(const wxString& redisCli, int mainPort, int portToAdd);
+    
 public:
     ClusterConfig(const wxString& name = "");
     ClusterConfig(ClusterPage* win);

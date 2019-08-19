@@ -9,6 +9,8 @@
 #include <wx/msgdlg.h>
 #include <wx/textdlg.h>
 
+MainFrame* MainFrame::m_mainFrame = nullptr;
+
 MainFrame::MainFrame(wxWindow* parent)
     : MainFrameBaseClass(parent)
 {
@@ -127,8 +129,21 @@ void MainFrame::OnRunInstances(wxCommandEvent& event)
         return;
     }
     ClusterConfig conf(page);
-
     conf.Run();
 }
 
 void MainFrame::OnRunUI(wxUpdateUIEvent& event) {}
+
+void MainFrame::SetFrame(MainFrame* frame)
+{
+    m_mainFrame = frame;
+}
+
+void MainFrame::Log(const wxString& message)
+{
+    m_mainFrame->GetStcLog()->ScrollToEnd();
+    m_mainFrame->GetStcLog()->AppendText(message + "\n");
+    m_mainFrame->GetStcLog()->SetInsertionPointEnd();
+    m_mainFrame->GetStcLog()->ClearSelections();
+    m_mainFrame->GetStcLog()->ScrollToEnd();
+}

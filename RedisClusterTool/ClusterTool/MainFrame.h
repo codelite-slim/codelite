@@ -5,6 +5,8 @@
 class ClusterPage;
 class MainFrame : public MainFrameBaseClass
 {
+    static MainFrame* m_mainFrame;
+
 public:
     MainFrame(wxWindow* parent);
     virtual ~MainFrame();
@@ -12,13 +14,15 @@ public:
     void OnExit(wxCommandEvent& event);
     void OnAbout(wxCommandEvent& event);
     void Save(ClusterPage* page);
+    static void SetFrame(MainFrame* frame);
+    static void Log(const wxString& message);
     
 protected:
     virtual void OnRunUI(wxUpdateUIEvent& event);
     virtual void OnRunInstances(wxCommandEvent& event);
     virtual void OnPreferences(wxCommandEvent& event);
     ClusterPage* GetActivePage();
-    
+
 protected:
     virtual void OnDeploy(wxCommandEvent& event);
     virtual void OnSaveUI(wxUpdateUIEvent& event);

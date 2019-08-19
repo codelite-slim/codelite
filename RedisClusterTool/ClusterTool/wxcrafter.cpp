@@ -32,11 +32,24 @@ MainFrameBaseClass::MainFrameBaseClass(wxWindow* parent, wxWindowID id, const wx
     wxBoxSizer* boxSizer11 = new wxBoxSizer(wxVERTICAL);
     m_mainPanel->SetSizer(boxSizer11);
 
-    m_notebook121 = new wxNotebook(m_mainPanel, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_mainPanel, wxSize(-1, -1)),
-                                   wxNB_FIXEDWIDTH);
+    m_splitter127 = new wxSplitterWindow(m_mainPanel, wxID_ANY, wxDefaultPosition,
+                                         wxDLG_UNIT(m_mainPanel, wxSize(-1, -1)), wxSP_LIVE_UPDATE | wxSP_3D);
+    m_splitter127->SetSashGravity(1);
+    m_splitter127->SetMinimumPaneSize(100);
+
+    boxSizer11->Add(m_splitter127, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+
+    m_splitterPage131 = new wxPanel(m_splitter127, wxID_ANY, wxDefaultPosition,
+                                    wxDLG_UNIT(m_splitter127, wxSize(-1, -1)), wxTAB_TRAVERSAL);
+
+    wxBoxSizer* boxSizer137 = new wxBoxSizer(wxVERTICAL);
+    m_splitterPage131->SetSizer(boxSizer137);
+
+    m_notebook121 = new wxNotebook(m_splitterPage131, wxID_ANY, wxDefaultPosition,
+                                   wxDLG_UNIT(m_splitterPage131, wxSize(-1, -1)), wxNB_FIXEDWIDTH);
     m_notebook121->SetName(wxT("m_notebook121"));
 
-    boxSizer11->Add(m_notebook121, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+    boxSizer137->Add(m_notebook121, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
 
     m_panel123 = new wxPanel(m_notebook121, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_notebook121, wxSize(-1, -1)),
                              wxTAB_TRAVERSAL);
@@ -75,6 +88,57 @@ MainFrameBaseClass::MainFrameBaseClass(wxWindow* parent, wxWindowID id, const wx
     m_panel125 = new wxPanel(m_notebook121, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_notebook121, wxSize(-1, -1)),
                              wxTAB_TRAVERSAL);
     m_notebook121->AddPage(m_panel125, _("Processes"), false);
+
+    m_splitterPage135 = new wxPanel(m_splitter127, wxID_ANY, wxDefaultPosition,
+                                    wxDLG_UNIT(m_splitter127, wxSize(-1, -1)), wxTAB_TRAVERSAL);
+    m_splitter127->SplitHorizontally(m_splitterPage131, m_splitterPage135, 0);
+
+    wxBoxSizer* boxSizer139 = new wxBoxSizer(wxVERTICAL);
+    m_splitterPage135->SetSizer(boxSizer139);
+
+    m_stcLog = new wxStyledTextCtrl(m_splitterPage135, wxID_ANY, wxDefaultPosition,
+                                    wxDLG_UNIT(m_splitterPage135, wxSize(-1, -1)), 0);
+    wxFont m_stcLogFont = wxSystemSettings::GetFont(wxSYS_SYSTEM_FIXED_FONT);
+    m_stcLog->SetFont(m_stcLogFont);
+    // Configure the fold margin
+    m_stcLog->SetMarginType(4, wxSTC_MARGIN_SYMBOL);
+    m_stcLog->SetMarginMask(4, wxSTC_MASK_FOLDERS);
+    m_stcLog->SetMarginSensitive(4, true);
+    m_stcLog->SetMarginWidth(4, 0);
+
+    // Configure the tracker margin
+    m_stcLog->SetMarginWidth(1, 0);
+
+    // Configure the symbol margin
+    m_stcLog->SetMarginType(2, wxSTC_MARGIN_SYMBOL);
+    m_stcLog->SetMarginMask(2, ~(wxSTC_MASK_FOLDERS));
+    m_stcLog->SetMarginWidth(2, 0);
+    m_stcLog->SetMarginSensitive(2, true);
+
+    // Configure the line numbers margin
+    m_stcLog->SetMarginType(0, wxSTC_MARGIN_NUMBER);
+    m_stcLog->SetMarginWidth(0, 0);
+
+    // Configure the line symbol margin
+    m_stcLog->SetMarginType(3, wxSTC_MARGIN_FORE);
+    m_stcLog->SetMarginMask(3, 0);
+    m_stcLog->SetMarginWidth(3, 0);
+    // Select the lexer
+    m_stcLog->SetLexer(wxSTC_LEX_OCTAVE);
+    // Set default font / styles
+    m_stcLog->StyleClearAll();
+    for(int i = 0; i < wxSTC_STYLE_MAX; ++i) {
+        m_stcLog->StyleSetFont(i, m_stcLogFont);
+    }
+    m_stcLog->SetWrapMode(1);
+    m_stcLog->SetIndentationGuides(0);
+    m_stcLog->SetKeyWords(0, wxT(""));
+    m_stcLog->SetKeyWords(1, wxT(""));
+    m_stcLog->SetKeyWords(2, wxT(""));
+    m_stcLog->SetKeyWords(3, wxT(""));
+    m_stcLog->SetKeyWords(4, wxT(""));
+
+    boxSizer139->Add(m_stcLog, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
 
     m_menuBar = new wxMenuBar(0);
     this->SetMenuBar(m_menuBar);

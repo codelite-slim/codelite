@@ -7,6 +7,7 @@
 #include <wx/msgdlg.h>
 #include <wx/tokenzr.h>
 #include <wx/utils.h>
+#include "MainFrame.h"
 
 ClusterConfig::ClusterConfig(ClusterPage* win)
 {
@@ -22,9 +23,7 @@ ClusterConfig::ClusterConfig(const wxString& name)
 {
 }
 
-ClusterConfig::~ClusterConfig()
-{
-}
+ClusterConfig::~ClusterConfig() {}
 
 void ClusterConfig::Load()
 {
@@ -70,9 +69,7 @@ void ClusterConfig::SetClusters(const wxArrayString& arr)
 
 wxString ClusterConfig::GetPrefix() const
 {
-    if(m_name.IsEmpty()) {
-        return "";
-    }
+    if(m_name.IsEmpty()) { return ""; }
     return (wxString() << "/Cluster/" << m_name);
 }
 
@@ -130,7 +127,7 @@ void ClusterConfig::Run()
         return;
     }
 
-    // Just incase, deploy it
+    // Just incase, deploy it. This will create all the needed files
     Deploy();
 
     // Execute the instances
@@ -148,44 +145,35 @@ void ClusterConfig::Run()
         command << redisServer;
         command = Utils::WrapWithQuotes(command);
         command << " " << GetRedisConfigFileName(i);
+        MainFrame::Log(command);
         if(::wxExecute(command, wxEXEC_ASYNC | wxEXEC_MAKE_GROUP_LEADER) <= 0) {
             ::wxMessageBox(wxString() << "Unable to execute: " << command, "Error", wxICON_ERROR | wxCENTRE);
             return;
         }
     }
-    
-    // Now that we have a running instances
-    // Form it into a cluster
-    wxString clusterCommand;
-    clusterCommand = redisCli;
-    clusterCommand = Utils::WrapWithQuotes(clusterCommand);
-    clusterCommand << " --cluster create";
-    for(int i = port; i < (port + size); ++i) {
-        clusterCommand << " 127.0.0.1:" << i;
+
+    // Now, add each node into the cluster
+    for(int i = (port + 1); i < (port + size); ++i) {
+        AddNodeToCluster(redisCli, port, i);
     }
-    
-    if(HasReplica()) {
-        clusterCommand << " --cluster-replicas 1";
-    }
-    
-    wxString terminalCommand;
-    wxString scriptContent;
-    scriptContent << "/usr/bin/gnome-terminal -e '/bin/bash -c \"" 
-                  << clusterCommand 
-                  << " || echo Hit any key to continue && read\"'\n";
-    wxFFile scriptFile("/tmp/create-cluster.sh", "w+b");
-    if(scriptFile.IsOpened()) {
-        scriptFile.Write(scriptContent);
-        scriptFile.Close();
-    }
-    terminalCommand << "/bin/bash -f /tmp/create-cluster.sh";
-    wxExecute(terminalCommand, wxEXEC_SYNC);
+
+    if(HasReplica()) {}
 }
 
 wxString ClusterConfig::GetRedisConfigFileName(int port) const
 {
-    //wxString f;
-    //f << "redis." << port << ".conf";
-    //return f;
+    // wxString f;
+    // f << "redis." << port << ".conf";
+    // return f;
     return "redis.conf";
+}
+
+void ClusterConfig::AddNodeToCluster(const wxString& redisCli, int mainPort, int portToAdd)
+{
+    // build the command to execute:
+    wxString command;
+    command << Utils::WrapWithQuotes(redisCli);
+    command << " -p " << mainPort << " -c CLUSTERADMIN MEET 127.0.0.1 " << portToAdd;
+    MainFrame::Log(command);
+    ::wxExecute(command, wxEXEC_SYNC);
 }
