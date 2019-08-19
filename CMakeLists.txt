@@ -614,6 +614,7 @@ if(NOT NO_CORE_PLUGINS)
     add_subdirectory(Tail)
     add_subdirectory(EditorConfigPlugin)
     add_subdirectory(LanguageServer)
+    add_subdirectory(wxcrafter)
     
     if (WITH_SFTP)
         add_subdirectory(SFTP)

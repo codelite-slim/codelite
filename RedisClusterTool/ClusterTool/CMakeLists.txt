@@ -9,12 +9,12 @@ project(ClusterTool)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 # Set default locations
-set(CL_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../cmake-build-Debug_Ubuntu/output)
+set(CL_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../cmake-build-Debug/output)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 
-set(CONFIGURATION_NAME "Debug_Ubuntu")
+set(CONFIGURATION_NAME "Debug")
 
 # Projects
 
@@ -27,7 +27,16 @@ set(WORKSPACE_PATH "${CMAKE_CURRENT_LIST_DIR}/..")
 
 
 #{{{{ User Code 1
-# Place your code here
+if (UNIX AND NOT APPLE)
+    SET(INSTALL_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib/RedisCluserTool")
+    SET(INSTALL_BIN_DIR "${CMAKE_INSTALL_PREFIX}/bin")
+    SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
+    SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
+    SET(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+    set(CMAKE_INSTALL_RPATH "${INSTALL_LIB_DIR}")
+endif(UNIX AND NOT APPLE)
+message(STATUS "INSTALL_LIB_DIR is set to ${INSTALL_LIB_DIR}")
+message(STATUS "INSTALL_BIN_DIR is set to ${INSTALL_BIN_DIR}")
 #}}}}
 
 include_directories(
@@ -85,14 +94,14 @@ link_directories(
 
 # Define the CXX sources
 set ( CXX_SRCS
-    ${CMAKE_CURRENT_LIST_DIR}/SettingsDlg.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/Utils.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ClusterConfig.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/Utils.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/SettingsDlg.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ClusterPage.cpp
     ${CMAKE_CURRENT_LIST_DIR}/wxcrafter.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/main.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/wxcrafter_bitmaps.cpp
     ${CMAKE_CURRENT_LIST_DIR}/MainFrame.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/wxcrafter_bitmaps.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/main.cpp
 )
 
 if(WIN32)
@@ -124,6 +133,33 @@ target_link_libraries(ClusterTool ${LINK_OPTIONS})
 
 
 #{{{{ User Code 3
-# Place your code here
+set(EXE_PERM OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ)
+install(FILES ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/ClusterTool DESTINATION ${INSTALL_BIN_DIR} PERMISSIONS ${EXE_PERM})
+
+# We need to deduce the location of the wx libs to be installed
+set(WX_TOOL "/usr/local/bin/wx-config")
+execute_process(COMMAND ${WX_TOOL} --libs OUTPUT_VARIABLE WX_LIBSOUTPUT OUTPUT_STRIP_TRAILING_WHITESPACE)
+if (${WX_LIBSOUTPUT} MATCHES "^-L.+") # In recent, multi-architecture, distro versions it'll start with -L/foo/bar
+    string(REGEX REPLACE "^-L([^ ;]+).*" "\\1" WX_LIBS_DIR ${WX_LIBSOUTPUT})
+endif()
+message("-- wxlibsdir is: ${WX_LIBS_DIR}")
+
+# Grab the necessary libs
+execute_process(COMMAND ${WX_TOOL} --libs all OUTPUT_VARIABLE WX_LIBS_ALL_IN OUTPUT_STRIP_TRAILING_WHITESPACE)
+string(REPLACE " " ";" WX_LIBS_ALL_LIST ${WX_LIBS_ALL_IN}) # the semicolons make the variable into a list
+
+foreach(ITEM ${WX_LIBS_ALL_LIST})
+    # We want to replace -l with lib. We also want to exclude imaginary libs called _all.so, which buggy wx-config scripts can invent
+    if (${ITEM} MATCHES "-lwx_.+" AND NOT ${ITEM} MATCHES "-l.+_all.+")
+        string(REGEX REPLACE "^-l" "lib" LIBITEM ${ITEM}) 
+        # openSUSE have started to use libwx_gtk2u_xrc-suse.so instead of libwx_gtk2u_xrc-3.1, so allow for extra text there
+        string(REGEX REPLACE "(libwx_[a-z0-9._]+-)(.+)" "\\1*\\2" LIBITEMADJ ${LIBITEM})
+        list(APPEND WX_LIBS_ALL ${WX_LIBS_DIR}/${LIBITEMADJ}*.so*) # we need the terminal [.]so because the rpms contain both dynamic and static libs
+    endif()
+endforeach()
+
+file(GLOB wxfilepaths ${WX_LIBS_ALL})
+install(FILES ${wxfilepaths} DESTINATION ${INSTALL_LIB_DIR})
+
 #}}}}
 
