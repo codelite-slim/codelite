@@ -165,17 +165,27 @@ void ClusterConfig::Run()
     }
     
     if(HasReplica()) {
-        clusterCommand << " --cluster-replicas 1";
+        clusterCommand << " --cluster-replicas 1 || read";
     }
     
     wxString terminalCommand;
-    terminalCommand << "/usr/bin/gnome-terminal -e '" << clusterCommand << "'";
+    wxString scriptContent;
+    scriptContent << "/usr/bin/gnome-terminal -e '" << clusterCommand << "'\n";
+    scriptContent << "echo Hit any key to continue\n";
+    scriptContent << "read\n";
+    wxFFile scriptFile("/tmp/create-cluster.sh", "w+b");
+    if(scriptFile.IsOpened()) {
+        scriptFile.Write(scriptContent);
+        scriptFile.Close();
+    }
+    terminalCommand << "/bin/bash -f /tmp/create-cluster.sh";
     wxExecute(terminalCommand, wxEXEC_SYNC);
 }
 
 wxString ClusterConfig::GetRedisConfigFileName(int port) const
 {
-    wxString f;
-    f << "redis." << port << ".conf";
-    return f;
+    //wxString f;
+    //f << "redis." << port << ".conf";
+    //return f;
+    return "redis.conf";
 }

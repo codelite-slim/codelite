@@ -21,6 +21,7 @@ MainFrame::MainFrame(wxWindow* parent)
     }
     //    m_listbook85->GetListView()->SetColumnWidth(0, 300);
     Layout();
+    SetLabel("cluster-tool");
 }
 
 MainFrame::~MainFrame() {}

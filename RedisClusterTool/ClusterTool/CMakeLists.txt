@@ -3,7 +3,7 @@
 cmake_minimum_required(VERSION 2.8.11)
 
 # Project name
-project(ClusterTool)
+project(cluster-tool)
 
 # This setting is useful for providing JSON file used by CodeLite for code completion
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
@@ -21,7 +21,7 @@ set(CONFIGURATION_NAME "Debug")
 
 # Top project
 # Define some variables
-set(PROJECT_ClusterTool_PATH "${CMAKE_CURRENT_LIST_DIR}")
+set(PROJECT_cluster-tool_PATH "${CMAKE_CURRENT_LIST_DIR}")
 set(WORKSPACE_PATH "${CMAKE_CURRENT_LIST_DIR}/..")
 
 
@@ -127,14 +127,14 @@ endif(WIN32)
 # Place your code here
 #}}}}
 
-add_executable(ClusterTool ${RC_SRCS} ${CXX_SRCS} ${C_SRCS})
-target_link_libraries(ClusterTool ${LINK_OPTIONS})
+add_executable(cluster-tool ${RC_SRCS} ${CXX_SRCS} ${C_SRCS})
+target_link_libraries(cluster-tool ${LINK_OPTIONS})
 
 
 
 #{{{{ User Code 3
 set(EXE_PERM OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ)
-install(FILES ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/ClusterTool DESTINATION ${INSTALL_BIN_DIR} PERMISSIONS ${EXE_PERM})
+install(FILES ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/cluster-tool DESTINATION ${INSTALL_BIN_DIR} PERMISSIONS ${EXE_PERM})
 
 # We need to deduce the location of the wx libs to be installed
 set(WX_TOOL "/usr/local/bin/wx-config")
