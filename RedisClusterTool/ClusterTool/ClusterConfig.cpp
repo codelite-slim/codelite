@@ -165,14 +165,14 @@ void ClusterConfig::Run()
     }
     
     if(HasReplica()) {
-        clusterCommand << " --cluster-replicas 1 || read";
+        clusterCommand << " --cluster-replicas 1";
     }
     
     wxString terminalCommand;
     wxString scriptContent;
-    scriptContent << "/usr/bin/gnome-terminal -e '" << clusterCommand << "'\n";
-    scriptContent << "echo Hit any key to continue\n";
-    scriptContent << "read\n";
+    scriptContent << "/usr/bin/gnome-terminal -e '/bin/bash -c \"" 
+                  << clusterCommand 
+                  << " || echo Hit any key to continue && read\"'\n";
     wxFFile scriptFile("/tmp/create-cluster.sh", "w+b");
     if(scriptFile.IsOpened()) {
         scriptFile.Write(scriptContent);
