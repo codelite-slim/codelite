@@ -96,7 +96,7 @@ void MainFrame::OnDeploy(wxCommandEvent& event)
 
     ClusterConfig conf(page);
 
-    conf.Deploy();
+    conf.Run();
     ::wxMessageBox(wxString() << "'" << conf.GetName() << "' configuration files were created at "
                               << conf.GetDeploymentPath());
 }
@@ -118,22 +118,6 @@ void MainFrame::OnPreferences(wxCommandEvent& event)
         conf->Flush();
     }
 }
-void MainFrame::OnRunInstances(wxCommandEvent& event)
-{
-    // Execute the instances
-    ClusterPage* page = GetActivePage();
-    if(!page) { return; }
-    if(page->GetClusterPath().IsEmpty() || page->GetClusterPath() == "/" ||
-       !wxFileName::DirExists(page->GetClusterPath())) {
-        wxMessageBox("Invalid or empty path", "Error", wxICON_ERROR | wxCENTER);
-        return;
-    }
-    ClusterConfig conf(page);
-    conf.Run();
-}
-
-void MainFrame::OnRunUI(wxUpdateUIEvent& event) {}
-
 void MainFrame::SetFrame(MainFrame* frame)
 {
     m_mainFrame = frame;

@@ -6,16 +6,17 @@
 
 #include "wxcrafter.h"
 
+
 // Declare the bitmap loading function
 extern void wxC9ED9InitBitmapResources();
 
 static bool bBitmapLoaded = false;
 
-MainFrameBaseClass::MainFrameBaseClass(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos,
-                                       const wxSize& size, long style)
+
+MainFrameBaseClass::MainFrameBaseClass(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style)
     : wxFrame(parent, id, title, pos, size, style)
 {
-    if(!bBitmapLoaded) {
+    if ( !bBitmapLoaded ) {
         // We need to initialise the default bitmap handler
         wxXmlResource::Get()->AddHandler(new wxBitmapXmlHandler);
         wxC9ED9InitBitmapResources();
@@ -25,109 +26,91 @@ MainFrameBaseClass::MainFrameBaseClass(wxWindow* parent, wxWindowID id, const wx
     wxBoxSizer* boxSizer1 = new wxBoxSizer(wxVERTICAL);
     this->SetSizer(boxSizer1);
 
-    m_mainPanel = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), wxTAB_TRAVERSAL);
+    m_mainPanel = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1,-1)), wxTAB_TRAVERSAL);
 
     boxSizer1->Add(m_mainPanel, 1, wxEXPAND, WXC_FROM_DIP(5));
 
     wxBoxSizer* boxSizer11 = new wxBoxSizer(wxVERTICAL);
     m_mainPanel->SetSizer(boxSizer11);
 
-    m_splitter127 = new wxSplitterWindow(m_mainPanel, wxID_ANY, wxDefaultPosition,
-                                         wxDLG_UNIT(m_mainPanel, wxSize(-1, -1)), wxSP_LIVE_UPDATE | wxSP_3D);
+    m_splitter127 = new wxSplitterWindow(m_mainPanel, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_mainPanel, wxSize(-1,-1)), wxSP_LIVE_UPDATE|wxSP_3D);
     m_splitter127->SetSashGravity(1);
     m_splitter127->SetMinimumPaneSize(100);
 
-    boxSizer11->Add(m_splitter127, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+    boxSizer11->Add(m_splitter127, 1, wxALL|wxEXPAND, WXC_FROM_DIP(5));
 
-    m_splitterPage131 = new wxPanel(m_splitter127, wxID_ANY, wxDefaultPosition,
-                                    wxDLG_UNIT(m_splitter127, wxSize(-1, -1)), wxTAB_TRAVERSAL);
+    m_splitterPage131 = new wxPanel(m_splitter127, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_splitter127, wxSize(-1,-1)), wxTAB_TRAVERSAL);
 
     wxBoxSizer* boxSizer137 = new wxBoxSizer(wxVERTICAL);
     m_splitterPage131->SetSizer(boxSizer137);
 
-    m_notebook121 = new wxNotebook(m_splitterPage131, wxID_ANY, wxDefaultPosition,
-                                   wxDLG_UNIT(m_splitterPage131, wxSize(-1, -1)), wxNB_FIXEDWIDTH);
+    m_notebook121 = new wxNotebook(m_splitterPage131, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_splitterPage131, wxSize(-1,-1)), wxNB_FIXEDWIDTH);
     m_notebook121->SetName(wxT("m_notebook121"));
 
-    boxSizer137->Add(m_notebook121, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+    boxSizer137->Add(m_notebook121, 1, wxALL|wxEXPAND, WXC_FROM_DIP(5));
 
-    m_panel123 = new wxPanel(m_notebook121, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_notebook121, wxSize(-1, -1)),
-                             wxTAB_TRAVERSAL);
+    m_panel123 = new wxPanel(m_notebook121, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_notebook121, wxSize(-1,-1)), wxTAB_TRAVERSAL);
     m_notebook121->AddPage(m_panel123, _("Clusters"), true);
 
     wxBoxSizer* boxSizer89 = new wxBoxSizer(wxVERTICAL);
     m_panel123->SetSizer(boxSizer89);
 
-    m_toolbar53 =
-        new wxToolBar(m_panel123, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panel123, wxSize(-1, -1)), wxTB_FLAT);
-    m_toolbar53->SetToolBitmapSize(wxSize(16, 16));
+    m_toolbar53 = new wxToolBar(m_panel123, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panel123, wxSize(-1,-1)), wxTB_FLAT);
+    m_toolbar53->SetToolBitmapSize(wxSize(16,16));
 
     boxSizer89->Add(m_toolbar53, 0, wxEXPAND, WXC_FROM_DIP(5));
 
-    m_toolbar53->AddTool(wxID_NEW, _("New Cluster"), wxXmlResource::Get()->LoadBitmap(wxT("new")), wxNullBitmap,
-                         wxITEM_NORMAL, _("New Cluster"), _("New Cluster"), NULL);
+    m_toolbar53->AddTool(wxID_NEW, _("New Cluster"), wxXmlResource::Get()->LoadBitmap(wxT("new")), wxNullBitmap, wxITEM_NORMAL, _("New Cluster"), _("New Cluster"), NULL);
 
-    m_toolbar53->AddTool(wxID_SAVE, _("Save"), wxXmlResource::Get()->LoadBitmap(wxT("save")), wxNullBitmap,
-                         wxITEM_NORMAL, _("Save"), _("Save"), NULL);
+    m_toolbar53->AddTool(wxID_SAVE, _("Save"), wxXmlResource::Get()->LoadBitmap(wxT("save")), wxNullBitmap, wxITEM_NORMAL, _("Save"), _("Save"), NULL);
 
-    m_toolbar53->AddTool(wxID_DEPLOY, _("Deploy"), wxXmlResource::Get()->LoadBitmap(wxT("deploy")), wxNullBitmap,
-                         wxITEM_NORMAL, _("Deploy"), _("Deploy"), NULL);
+    m_toolbar53->AddTool(wxID_DEPLOY, _("Deploy"), wxXmlResource::Get()->LoadBitmap(wxT("deploy")), wxNullBitmap, wxITEM_NORMAL, _("Deploy"), _("Deploy"), NULL);
 
     m_toolbar53->AddSeparator();
-
-    m_toolbar53->AddTool(wxID_EXECUTE, _("Run Cluster"), wxXmlResource::Get()->LoadBitmap(wxT("start")), wxNullBitmap,
-                         wxITEM_NORMAL, _("Run Cluster"), _("Run Cluster"), NULL);
     m_toolbar53->Realize();
 
-    m_notebook =
-        new wxNotebook(m_panel123, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panel123, wxSize(-1, -1)), wxBK_DEFAULT);
+    m_notebook = new wxNotebook(m_panel123, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panel123, wxSize(-1,-1)), wxBK_DEFAULT);
     m_notebook->SetName(wxT("m_notebook"));
 
     boxSizer89->Add(m_notebook, 1, wxEXPAND, WXC_FROM_DIP(5));
 
-    m_panel125 = new wxPanel(m_notebook121, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_notebook121, wxSize(-1, -1)),
-                             wxTAB_TRAVERSAL);
-    m_notebook121->AddPage(m_panel125, _("Processes"), false);
-
-    m_splitterPage135 = new wxPanel(m_splitter127, wxID_ANY, wxDefaultPosition,
-                                    wxDLG_UNIT(m_splitter127, wxSize(-1, -1)), wxTAB_TRAVERSAL);
+    m_splitterPage135 = new wxPanel(m_splitter127, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_splitter127, wxSize(-1,-1)), wxTAB_TRAVERSAL);
     m_splitter127->SplitHorizontally(m_splitterPage131, m_splitterPage135, 0);
 
     wxBoxSizer* boxSizer139 = new wxBoxSizer(wxVERTICAL);
     m_splitterPage135->SetSizer(boxSizer139);
 
-    m_stcLog = new wxStyledTextCtrl(m_splitterPage135, wxID_ANY, wxDefaultPosition,
-                                    wxDLG_UNIT(m_splitterPage135, wxSize(-1, -1)), 0);
+    m_stcLog = new wxStyledTextCtrl(m_splitterPage135, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_splitterPage135, wxSize(-1,-1)), 0);
     wxFont m_stcLogFont = wxSystemSettings::GetFont(wxSYS_SYSTEM_FIXED_FONT);
     m_stcLog->SetFont(m_stcLogFont);
     // Configure the fold margin
-    m_stcLog->SetMarginType(4, wxSTC_MARGIN_SYMBOL);
-    m_stcLog->SetMarginMask(4, wxSTC_MASK_FOLDERS);
+    m_stcLog->SetMarginType     (4, wxSTC_MARGIN_SYMBOL);
+    m_stcLog->SetMarginMask     (4, wxSTC_MASK_FOLDERS);
     m_stcLog->SetMarginSensitive(4, true);
-    m_stcLog->SetMarginWidth(4, 0);
+    m_stcLog->SetMarginWidth    (4, 0);
 
     // Configure the tracker margin
     m_stcLog->SetMarginWidth(1, 0);
 
     // Configure the symbol margin
-    m_stcLog->SetMarginType(2, wxSTC_MARGIN_SYMBOL);
-    m_stcLog->SetMarginMask(2, ~(wxSTC_MASK_FOLDERS));
+    m_stcLog->SetMarginType (2, wxSTC_MARGIN_SYMBOL);
+    m_stcLog->SetMarginMask (2, ~(wxSTC_MASK_FOLDERS));
     m_stcLog->SetMarginWidth(2, 0);
     m_stcLog->SetMarginSensitive(2, true);
 
     // Configure the line numbers margin
     m_stcLog->SetMarginType(0, wxSTC_MARGIN_NUMBER);
-    m_stcLog->SetMarginWidth(0, 0);
+    m_stcLog->SetMarginWidth(0,0);
 
     // Configure the line symbol margin
     m_stcLog->SetMarginType(3, wxSTC_MARGIN_FORE);
     m_stcLog->SetMarginMask(3, 0);
-    m_stcLog->SetMarginWidth(3, 0);
+    m_stcLog->SetMarginWidth(3,0);
     // Select the lexer
     m_stcLog->SetLexer(wxSTC_LEX_OCTAVE);
     // Set default font / styles
     m_stcLog->StyleClearAll();
-    for(int i = 0; i < wxSTC_STYLE_MAX; ++i) {
+    for(int i=0; i<wxSTC_STYLE_MAX; ++i) {
         m_stcLog->StyleSetFont(i, m_stcLogFont);
     }
     m_stcLog->SetWrapMode(1);
@@ -138,7 +121,7 @@ MainFrameBaseClass::MainFrameBaseClass(wxWindow* parent, wxWindowID id, const wx
     m_stcLog->SetKeyWords(3, wxT(""));
     m_stcLog->SetKeyWords(4, wxT(""));
 
-    boxSizer139->Add(m_stcLog, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+    boxSizer139->Add(m_stcLog, 1, wxALL|wxEXPAND, WXC_FROM_DIP(5));
 
     m_menuBar = new wxMenuBar(0);
     this->SetMenuBar(m_menuBar);
@@ -161,8 +144,7 @@ MainFrameBaseClass::MainFrameBaseClass(wxWindow* parent, wxWindowID id, const wx
     m_menuItemDeploy = new wxMenuItem(Action, wxID_DEPLOY, _("Deploy Cluster"), _("Deploy Cluster"), wxITEM_NORMAL);
     Action->Append(m_menuItemDeploy);
 
-    m_menuItemExecute =
-        new wxMenuItem(Action, wxID_EXECUTE, _("Run Cluster\tCtrl-F5"), _("Run Cluster"), wxITEM_NORMAL);
+    m_menuItemExecute = new wxMenuItem(Action, wxID_EXECUTE, _("Run Cluster\tCtrl-F5"), _("Run Cluster"), wxITEM_NORMAL);
     Action->Append(m_menuItemExecute);
 
     Action->AppendSeparator();
@@ -175,6 +157,7 @@ MainFrameBaseClass::MainFrameBaseClass(wxWindow* parent, wxWindowID id, const wx
 
     m_menuItem9 = new wxMenuItem(Help, wxID_ABOUT, _("About..."), wxT(""), wxITEM_NORMAL);
     Help->Append(m_menuItem9);
+
 
 #if wxVERSION_NUMBER >= 2900
     if(!wxPersistenceManager::Get().Find(m_notebook121)) {
@@ -193,8 +176,10 @@ MainFrameBaseClass::MainFrameBaseClass(wxWindow* parent, wxWindowID id, const wx
 #endif
 
     SetName(wxT("MainFrameBaseClass"));
-    SetSize(wxDLG_UNIT(this, wxSize(600, 500)));
-    if(GetSizer()) { GetSizer()->Fit(this); }
+    SetSize(wxDLG_UNIT(this, wxSize(600,500)));
+    if (GetSizer()) {
+        GetSizer()->Fit(this);
+    }
     if(GetParent()) {
         CentreOnParent(wxBOTH);
     } else {
@@ -208,50 +193,34 @@ MainFrameBaseClass::MainFrameBaseClass(wxWindow* parent, wxWindowID id, const wx
     }
 #endif
     // Connect events
-    this->Connect(wxID_EXECUTE, wxEVT_UPDATE_UI, wxUpdateUIEventHandler(MainFrameBaseClass::OnRunUI), NULL, this);
-    this->Connect(m_menuItemNew->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-                  wxCommandEventHandler(MainFrameBaseClass::OnNewCluster), NULL, this);
-    this->Connect(m_menuItemSave->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-                  wxCommandEventHandler(MainFrameBaseClass::OnSave), NULL, this);
-    this->Connect(m_menuItemSave->GetId(), wxEVT_UPDATE_UI, wxUpdateUIEventHandler(MainFrameBaseClass::OnSaveUI), NULL,
-                  this);
-    this->Connect(m_menuItem7->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrameBaseClass::OnExit),
-                  NULL, this);
-    this->Connect(m_menuItemDeploy->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-                  wxCommandEventHandler(MainFrameBaseClass::OnDeploy), NULL, this);
-    this->Connect(m_menuItemExecute->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-                  wxCommandEventHandler(MainFrameBaseClass::OnRunInstances), NULL, this);
-    this->Connect(m_menuItem115->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-                  wxCommandEventHandler(MainFrameBaseClass::OnPreferences), NULL, this);
-    this->Connect(m_menuItem9->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrameBaseClass::OnAbout),
-                  NULL, this);
+    this->Connect(m_menuItemNew->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrameBaseClass::OnNewCluster), NULL, this);
+    this->Connect(m_menuItemSave->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrameBaseClass::OnSave), NULL, this);
+    this->Connect(m_menuItemSave->GetId(), wxEVT_UPDATE_UI, wxUpdateUIEventHandler(MainFrameBaseClass::OnSaveUI), NULL, this);
+    this->Connect(m_menuItem7->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrameBaseClass::OnExit), NULL, this);
+    this->Connect(m_menuItemDeploy->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrameBaseClass::OnDeploy), NULL, this);
+    this->Connect(m_menuItemExecute->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrameBaseClass::OnRunInstances), NULL, this);
+    this->Connect(m_menuItem115->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrameBaseClass::OnPreferences), NULL, this);
+    this->Connect(m_menuItem9->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrameBaseClass::OnAbout), NULL, this);
+
 }
 
 MainFrameBaseClass::~MainFrameBaseClass()
 {
-    this->Disconnect(wxID_EXECUTE, wxEVT_UPDATE_UI, wxUpdateUIEventHandler(MainFrameBaseClass::OnRunUI), NULL, this);
-    this->Disconnect(m_menuItemNew->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-                     wxCommandEventHandler(MainFrameBaseClass::OnNewCluster), NULL, this);
-    this->Disconnect(m_menuItemSave->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-                     wxCommandEventHandler(MainFrameBaseClass::OnSave), NULL, this);
-    this->Disconnect(m_menuItemSave->GetId(), wxEVT_UPDATE_UI, wxUpdateUIEventHandler(MainFrameBaseClass::OnSaveUI),
-                     NULL, this);
-    this->Disconnect(m_menuItem7->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-                     wxCommandEventHandler(MainFrameBaseClass::OnExit), NULL, this);
-    this->Disconnect(m_menuItemDeploy->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-                     wxCommandEventHandler(MainFrameBaseClass::OnDeploy), NULL, this);
-    this->Disconnect(m_menuItemExecute->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-                     wxCommandEventHandler(MainFrameBaseClass::OnRunInstances), NULL, this);
-    this->Disconnect(m_menuItem115->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-                     wxCommandEventHandler(MainFrameBaseClass::OnPreferences), NULL, this);
-    this->Disconnect(m_menuItem9->GetId(), wxEVT_COMMAND_MENU_SELECTED,
-                     wxCommandEventHandler(MainFrameBaseClass::OnAbout), NULL, this);
+    this->Disconnect(m_menuItemNew->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrameBaseClass::OnNewCluster), NULL, this);
+    this->Disconnect(m_menuItemSave->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrameBaseClass::OnSave), NULL, this);
+    this->Disconnect(m_menuItemSave->GetId(), wxEVT_UPDATE_UI, wxUpdateUIEventHandler(MainFrameBaseClass::OnSaveUI), NULL, this);
+    this->Disconnect(m_menuItem7->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrameBaseClass::OnExit), NULL, this);
+    this->Disconnect(m_menuItemDeploy->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrameBaseClass::OnDeploy), NULL, this);
+    this->Disconnect(m_menuItemExecute->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrameBaseClass::OnRunInstances), NULL, this);
+    this->Disconnect(m_menuItem115->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrameBaseClass::OnPreferences), NULL, this);
+    this->Disconnect(m_menuItem9->GetId(), wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(MainFrameBaseClass::OnAbout), NULL, this);
+
 }
 
 ClusterPageBase::ClusterPageBase(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style)
     : wxPanel(parent, id, pos, size, style)
 {
-    if(!bBitmapLoaded) {
+    if ( !bBitmapLoaded ) {
         // We need to initialise the default bitmap handler
         wxXmlResource::Get()->AddHandler(new wxBitmapXmlHandler);
         wxC9ED9InitBitmapResources();
@@ -262,80 +231,74 @@ ClusterPageBase::ClusterPageBase(wxWindow* parent, wxWindowID id, const wxPoint&
     this->SetSizer(boxSizer19);
 
     wxFlexGridSizer* flexGridSizer21 = new wxFlexGridSizer(0, 2, 0, 0);
-    flexGridSizer21->SetFlexibleDirection(wxBOTH);
-    flexGridSizer21->SetNonFlexibleGrowMode(wxFLEX_GROWMODE_SPECIFIED);
+    flexGridSizer21->SetFlexibleDirection( wxBOTH );
+    flexGridSizer21->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
     flexGridSizer21->AddGrowableCol(1);
 
-    boxSizer19->Add(flexGridSizer21, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+    boxSizer19->Add(flexGridSizer21, 1, wxALL|wxEXPAND, WXC_FROM_DIP(5));
 
-    m_staticText23 =
-        new wxStaticText(this, wxID_ANY, _("Name:"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+    m_staticText23 = new wxStaticText(this, wxID_ANY, _("Name:"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1,-1)), 0);
 
-    flexGridSizer21->Add(m_staticText23, 0, wxALL | wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
+    flexGridSizer21->Add(m_staticText23, 0, wxALL|wxALIGN_RIGHT|wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
 
-    m_textCtrlName = new wxTextCtrl(this, wxID_ANY, wxT(""), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+    m_textCtrlName = new wxTextCtrl(this, wxID_ANY, wxT(""), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1,-1)), 0);
     m_textCtrlName->SetFocus();
 #if wxVERSION_NUMBER >= 3000
     m_textCtrlName->SetHint(wxT(""));
 #endif
 
-    flexGridSizer21->Add(m_textCtrlName, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+    flexGridSizer21->Add(m_textCtrlName, 0, wxALL|wxEXPAND, WXC_FROM_DIP(5));
 
-    m_staticText27 =
-        new wxStaticText(this, wxID_ANY, _("Path:"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+    m_staticText27 = new wxStaticText(this, wxID_ANY, _("Path:"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1,-1)), 0);
 
-    flexGridSizer21->Add(m_staticText27, 0, wxALL | wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
+    flexGridSizer21->Add(m_staticText27, 0, wxALL|wxALIGN_RIGHT|wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
 
-    m_dirPicker = new wxDirPickerCtrl(this, wxID_ANY, wxEmptyString, _("Select a folder"), wxDefaultPosition,
-                                      wxDLG_UNIT(this, wxSize(-1, -1)),
-                                      wxDIRP_SMALL | wxDIRP_DEFAULT_STYLE | wxDIRP_USE_TEXTCTRL);
+    m_dirPicker = new wxDirPickerCtrl(this, wxID_ANY, wxEmptyString, _("Select a folder"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1,-1)), wxDIRP_SMALL|wxDIRP_DEFAULT_STYLE|wxDIRP_USE_TEXTCTRL);
 
-    flexGridSizer21->Add(m_dirPicker, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+    flexGridSizer21->Add(m_dirPicker, 0, wxALL|wxEXPAND, WXC_FROM_DIP(5));
 
-    m_staticText31 =
-        new wxStaticText(this, wxID_ANY, _("Port Number:"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+    m_staticText31 = new wxStaticText(this, wxID_ANY, _("Port Number:"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1,-1)), 0);
 
-    flexGridSizer21->Add(m_staticText31, 0, wxALL | wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
+    flexGridSizer21->Add(m_staticText31, 0, wxALL|wxALIGN_RIGHT|wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
 
-    m_spinCtrlPort = new wxSpinCtrl(this, wxID_ANY, wxT("7000"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)),
-                                    wxSP_ARROW_KEYS);
+    m_spinCtrlPort = new wxSpinCtrl(this, wxID_ANY, wxT("7000"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1,-1)), wxSP_ARROW_KEYS);
     m_spinCtrlPort->SetRange(7000, 60000);
     m_spinCtrlPort->SetValue(7000);
 
-    flexGridSizer21->Add(m_spinCtrlPort, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+    flexGridSizer21->Add(m_spinCtrlPort, 0, wxALL|wxEXPAND, WXC_FROM_DIP(5));
 
-    m_staticText35 =
-        new wxStaticText(this, wxID_ANY, _("Number of Nodes:"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+    m_staticText35 = new wxStaticText(this, wxID_ANY, _("Number of Nodes:"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1,-1)), 0);
 
-    flexGridSizer21->Add(m_staticText35, 0, wxALL | wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
+    flexGridSizer21->Add(m_staticText35, 0, wxALL|wxALIGN_RIGHT|wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
 
-    m_spinCtrl37 =
-        new wxSpinCtrl(this, wxID_ANY, wxT("6"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), wxSP_ARROW_KEYS);
+    m_spinCtrl37 = new wxSpinCtrl(this, wxID_ANY, wxT("6"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1,-1)), wxSP_ARROW_KEYS);
     m_spinCtrl37->SetRange(6, 100);
     m_spinCtrl37->SetValue(6);
 
-    flexGridSizer21->Add(m_spinCtrl37, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+    flexGridSizer21->Add(m_spinCtrl37, 0, wxALL|wxEXPAND, WXC_FROM_DIP(5));
 
     flexGridSizer21->Add(0, 0, 1, wxALL, WXC_FROM_DIP(5));
 
-    m_checkBox45 =
-        new wxCheckBox(this, wxID_ANY, _("Enable Replica"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+    m_checkBox45 = new wxCheckBox(this, wxID_ANY, _("Enable Replica"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1,-1)), 0);
     m_checkBox45->SetValue(true);
 
     flexGridSizer21->Add(m_checkBox45, 0, wxALL, WXC_FROM_DIP(5));
 
     SetName(wxT("ClusterPageBase"));
-    SetSize(wxDLG_UNIT(this, wxSize(500, 300)));
-    if(GetSizer()) { GetSizer()->Fit(this); }
+    SetSize(wxDLG_UNIT(this, wxSize(500,300)));
+    if (GetSizer()) {
+        GetSizer()->Fit(this);
+    }
 }
 
-ClusterPageBase::~ClusterPageBase() {}
+ClusterPageBase::~ClusterPageBase()
+{
+}
 
-SettingsDlgBase::SettingsDlgBase(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos,
-                                 const wxSize& size, long style)
+SettingsDlgBase::SettingsDlgBase(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style)
     : wxDialog(parent, id, title, pos, size, style)
 {
-    if(!bBitmapLoaded) {
+    if ( !bBitmapLoaded ) {
         // We need to initialise the default bitmap handler
         wxXmlResource::Get()->AddHandler(new wxBitmapXmlHandler);
         wxC9ED9InitBitmapResources();
@@ -346,38 +309,32 @@ SettingsDlgBase::SettingsDlgBase(wxWindow* parent, wxWindowID id, const wxString
     this->SetSizer(boxSizer95);
 
     wxFlexGridSizer* flexGridSizer103 = new wxFlexGridSizer(0, 2, 0, 0);
-    flexGridSizer103->SetFlexibleDirection(wxBOTH);
-    flexGridSizer103->SetNonFlexibleGrowMode(wxFLEX_GROWMODE_SPECIFIED);
+    flexGridSizer103->SetFlexibleDirection( wxBOTH );
+    flexGridSizer103->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
     flexGridSizer103->AddGrowableCol(1);
 
-    boxSizer95->Add(flexGridSizer103, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+    boxSizer95->Add(flexGridSizer103, 1, wxALL|wxEXPAND, WXC_FROM_DIP(5));
 
-    m_staticText105 =
-        new wxStaticText(this, wxID_ANY, _("redis-server:"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+    m_staticText105 = new wxStaticText(this, wxID_ANY, _("redis-server:"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1,-1)), 0);
 
-    flexGridSizer103->Add(m_staticText105, 0, wxALL | wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
+    flexGridSizer103->Add(m_staticText105, 0, wxALL|wxALIGN_RIGHT|wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
 
-    m_filePickerServer =
-        new wxFilePickerCtrl(this, wxID_ANY, wxEmptyString, _("Select a file"), wxT("*"), wxDefaultPosition,
-                             wxDLG_UNIT(this, wxSize(300, -1)), wxFLP_DEFAULT_STYLE | wxFLP_USE_TEXTCTRL | wxFLP_SMALL);
+    m_filePickerServer = new wxFilePickerCtrl(this, wxID_ANY, wxEmptyString, _("Select a file"), wxT("*"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(300,-1)), wxFLP_DEFAULT_STYLE|wxFLP_USE_TEXTCTRL|wxFLP_SMALL);
 
-    flexGridSizer103->Add(m_filePickerServer, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+    flexGridSizer103->Add(m_filePickerServer, 0, wxALL|wxEXPAND, WXC_FROM_DIP(5));
 
-    m_staticText109 =
-        new wxStaticText(this, wxID_ANY, _("redis-cli:"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+    m_staticText109 = new wxStaticText(this, wxID_ANY, _("redis-cli:"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1,-1)), 0);
 
-    flexGridSizer103->Add(m_staticText109, 0, wxALL | wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
+    flexGridSizer103->Add(m_staticText109, 0, wxALL|wxALIGN_RIGHT|wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
 
-    m_filePickerCli =
-        new wxFilePickerCtrl(this, wxID_ANY, wxEmptyString, _("Select a file"), wxT("*"), wxDefaultPosition,
-                             wxDLG_UNIT(this, wxSize(-1, -1)), wxFLP_DEFAULT_STYLE | wxFLP_USE_TEXTCTRL | wxFLP_SMALL);
+    m_filePickerCli = new wxFilePickerCtrl(this, wxID_ANY, wxEmptyString, _("Select a file"), wxT("*"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1,-1)), wxFLP_DEFAULT_STYLE|wxFLP_USE_TEXTCTRL|wxFLP_SMALL);
 
-    flexGridSizer103->Add(m_filePickerCli, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
-    m_filePickerCli->SetMinSize(wxSize(300, -1));
+    flexGridSizer103->Add(m_filePickerCli, 0, wxALL|wxEXPAND, WXC_FROM_DIP(5));
+    m_filePickerCli->SetMinSize(wxSize(300,-1));
 
     m_stdBtnSizer97 = new wxStdDialogButtonSizer();
 
-    boxSizer95->Add(m_stdBtnSizer97, 0, wxALL | wxALIGN_CENTER_HORIZONTAL, WXC_FROM_DIP(5));
+    boxSizer95->Add(m_stdBtnSizer97, 0, wxALL|wxALIGN_CENTER_HORIZONTAL, WXC_FROM_DIP(5));
 
     m_button99 = new wxButton(this, wxID_OK, wxT(""), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
     m_button99->SetDefault();
@@ -388,8 +345,10 @@ SettingsDlgBase::SettingsDlgBase(wxWindow* parent, wxWindowID id, const wxString
     m_stdBtnSizer97->Realize();
 
     SetName(wxT("SettingsDlgBase"));
-    SetSize(wxDLG_UNIT(this, wxSize(-1, -1)));
-    if(GetSizer()) { GetSizer()->Fit(this); }
+    SetSize(wxDLG_UNIT(this, wxSize(-1,-1)));
+    if (GetSizer()) {
+        GetSizer()->Fit(this);
+    }
     if(GetParent()) {
         CentreOnParent(wxBOTH);
     } else {
@@ -404,4 +363,6 @@ SettingsDlgBase::SettingsDlgBase(wxWindow* parent, wxWindowID id, const wxString
 #endif
 }
 
-SettingsDlgBase::~SettingsDlgBase() {}
+SettingsDlgBase::~SettingsDlgBase()
+{
+}

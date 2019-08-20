@@ -21,6 +21,9 @@ protected:
 protected:
     wxString GetPrefix() const;
     void AddNodeToCluster(const wxString& redisCli, int mainPort, int portToAdd);
+    void CreateScripts();
+    void WriteScript(const wxString& name, const wxString& content);
+    void RunScript(const wxString& name);
     
 public:
     ClusterConfig(const wxString& name = "");
@@ -29,7 +32,7 @@ public:
 
     void Load();
     void Save();
-    void Deploy();
+    void CreateConfigurations();
     void Run();
     
     static wxArrayString GetAllClusters();

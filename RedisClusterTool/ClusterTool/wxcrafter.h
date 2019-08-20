@@ -53,7 +53,6 @@ public:
     enum {
         wxID_DEPLOY = 10001,
     };
-
 protected:
     wxPanel* m_mainPanel;
     wxSplitterWindow* m_splitter127;
@@ -62,7 +61,6 @@ protected:
     wxPanel* m_panel123;
     wxToolBar* m_toolbar53;
     wxNotebook* m_notebook;
-    wxPanel* m_panel125;
     wxPanel* m_splitterPage135;
     wxStyledTextCtrl* m_stcLog;
     wxMenuBar* m_menuBar;
@@ -79,7 +77,6 @@ protected:
     wxMenuItem* m_menuItem9;
 
 protected:
-    virtual void OnRunUI(wxUpdateUIEvent& event) { event.Skip(); }
     virtual void OnNewCluster(wxCommandEvent& event) { event.Skip(); }
     virtual void OnSave(wxCommandEvent& event) { event.Skip(); }
     virtual void OnSaveUI(wxUpdateUIEvent& event) { event.Skip(); }
@@ -93,7 +90,6 @@ public:
     wxToolBar* GetToolbar53() { return m_toolbar53; }
     wxNotebook* GetNotebook() { return m_notebook; }
     wxPanel* GetPanel123() { return m_panel123; }
-    wxPanel* GetPanel125() { return m_panel125; }
     wxNotebook* GetNotebook121() { return m_notebook121; }
     wxPanel* GetSplitterPage131() { return m_splitterPage131; }
     wxStyledTextCtrl* GetStcLog() { return m_stcLog; }
@@ -101,12 +97,10 @@ public:
     wxSplitterWindow* GetSplitter127() { return m_splitter127; }
     wxPanel* GetMainPanel() { return m_mainPanel; }
     wxMenuBar* GetMenuBar() { return m_menuBar; }
-    MainFrameBaseClass(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("My Frame"),
-                       const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(600, 500),
-                       long style = wxCAPTION | wxRESIZE_BORDER | wxMAXIMIZE_BOX | wxMINIMIZE_BOX | wxSYSTEM_MENU |
-                                    wxCLOSE_BOX);
+    MainFrameBaseClass(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("My Frame"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(600,500), long style = wxCAPTION|wxRESIZE_BORDER|wxMAXIMIZE_BOX|wxMINIMIZE_BOX|wxSYSTEM_MENU|wxCLOSE_BOX);
     virtual ~MainFrameBaseClass();
 };
+
 
 class ClusterPageBase : public wxPanel
 {
@@ -122,6 +116,7 @@ protected:
     wxCheckBox* m_checkBox45;
 
 protected:
+
 public:
     wxStaticText* GetStaticText23() { return m_staticText23; }
     wxTextCtrl* GetTextCtrlName() { return m_textCtrlName; }
@@ -132,10 +127,10 @@ public:
     wxStaticText* GetStaticText35() { return m_staticText35; }
     wxSpinCtrl* GetSpinCtrl37() { return m_spinCtrl37; }
     wxCheckBox* GetCheckBox45() { return m_checkBox45; }
-    ClusterPageBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition,
-                    const wxSize& size = wxSize(500, 300), long style = wxTAB_TRAVERSAL);
+    ClusterPageBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(500,300), long style = wxTAB_TRAVERSAL);
     virtual ~ClusterPageBase();
 };
+
 
 class SettingsDlgBase : public wxDialog
 {
@@ -149,14 +144,13 @@ protected:
     wxButton* m_button101;
 
 protected:
+
 public:
     wxStaticText* GetStaticText105() { return m_staticText105; }
     wxFilePickerCtrl* GetFilePickerServer() { return m_filePickerServer; }
     wxStaticText* GetStaticText109() { return m_staticText109; }
     wxFilePickerCtrl* GetFilePickerCli() { return m_filePickerCli; }
-    SettingsDlgBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Settings"),
-                    const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1, -1),
-                    long style = wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
+    SettingsDlgBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = _("Settings"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(-1,-1), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER);
     virtual ~SettingsDlgBase();
 };
 

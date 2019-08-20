@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://www.wxwidgets.org/wxxrc">
   <!-- Handler Generation is ON -->
-  <object class="wxBitmap" name="deploy">..\bitmaps\deploy.png</object>
-  <object class="wxBitmap" name="new">..\bitmaps\new.png</object>
-  <object class="wxBitmap" name="save">..\bitmaps\save.png</object>
-  <object class="wxBitmap" name="start">..\bitmaps\start.png</object>
+  <object class="wxBitmap" name="deploy">../bitmaps/deploy.png</object>
+  <object class="wxBitmap" name="new">../bitmaps/new.png</object>
+  <object class="wxBitmap" name="save">../bitmaps/save.png</object>
 </resource>

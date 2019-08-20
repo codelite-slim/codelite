@@ -78,7 +78,7 @@ wxString ClusterConfig::GetPrefix() const
     return (wxString() << "/Cluster/" << m_name);
 }
 
-void ClusterConfig::Deploy()
+void ClusterConfig::CreateConfigurations()
 {
     // Create the folder
     wxFileName path(GetDeploymentPath(), "");
@@ -136,41 +136,56 @@ void ClusterConfig::Run()
     
     redisCli = Utils::WrapWithQuotes(redisCli);
     // Just incase, deploy it. This will create all the needed files
-    MainFrame::Log("Creating configuration files...");
-    Deploy();
-    MainFrame::Log("Done");
-
-    // Execute the instances
-
-    MainFrame::Log("Starting instances...");
+    MainFrame::Log("Generating configuration files...");
+    CreateConfigurations();
+    
     int port = GetFirstPort();
     int size = GetSize();
+    wxString runInstancesScript;
+    wxString stopInstancesScript;
+    runInstancesScript << "#!/bin/bash\n";
+    stopInstancesScript << "#!/bin/bash\n";
+    
+    stopInstancesScript << 
+"stopRedis()\n"
+"{\n"
+"    port=$1\n"
+"    re='^[0-9]+$'\n"
+"    echo Stopping redis-server port: $port\n"
+"    pid=`ps -ef|grep redis-server|grep $port|awk '{print $2;}'`\n"
+"    if [[ $pid =~ $re ]] ; then\n"
+"        kill $pid;\n"
+"    fi\n"
+"}\n\n"
+;
+
+    runInstancesScript << "base_dir=" << Utils::WrapWithQuotes(GetDeploymentPath()) << "\n";
     for(int i = port; i < (port + size); ++i) {
         wxFileName d(GetDeploymentPath(), "");
         d.AppendDir(wxString() << i);
         wxFileName redisConfig(d.GetFullPath(), GetRedisConfigFileName(i));
-
-        DirSaver ds;
-        ::wxSetWorkingDirectory(redisConfig.GetPath());
-
         wxString command;
         command << redisServer;
         command << " " << GetRedisConfigFileName(i);
-        MainFrame::Log(wxString() << "(" << redisConfig.GetPath() << ") " << command, 1);
-        if(::wxExecute(command, wxEXEC_ASYNC | wxEXEC_MAKE_GROUP_LEADER) <= 0) {
-            ::wxMessageBox(wxString() << "Unable to execute: " << command, "Error", wxICON_ERROR | wxCENTRE);
-            return;
-        }
+        runInstancesScript << "cd $base_dir/" << i << " && " << redisServer << " redis.conf &\n";
+        stopInstancesScript << "stopRedis " << i << "\n";
     }
-
-    MainFrame::Log("Done");
-
-    MainFrame::Log("Forming cluster...");
+    
+    // Create the run script
+    MainFrame::Log("Generating run-instances.sh script...");
+    WriteScript("run-instances.sh", runInstancesScript);
+    
+    MainFrame::Log("Generating stop-instances.sh script...");
+    WriteScript("stop-instances.sh", stopInstancesScript);
+    
+    // Run the cluster
+    RunScript("run-instances.sh");
+    
     // Now, add each node into the cluster
+    MainFrame::Log("Forming cluster...");
     for(int i = (port + 1); i < (port + size); ++i) {
         AddNodeToCluster(redisCli, port, i);
     }
-    MainFrame::Log("Done");
 
     if(HasReplica()) {
         ::wxSleep(5);
@@ -222,4 +237,24 @@ void ClusterConfig::AddNodeToCluster(const wxString& redisCli, int mainPort, int
     command << " -p " << mainPort << " -c CLUSTERADMIN MEET 127.0.0.1 " << portToAdd;
     MainFrame::Log(command, 1);
     ::wxExecute(command, wxEXEC_SYNC | wxEXEC_MAKE_GROUP_LEADER);
+}
+
+void ClusterConfig::CreateScripts()
+{
+}
+
+void ClusterConfig::WriteScript(const wxString& name, const wxString& content)
+{
+    wxFileName script(GetDeploymentPath(), name);
+    wxFFile fp(script.GetFullPath(), "w+b");
+    if(!fp.IsOpened()) { return; }
+    fp.Write(content);
+    fp.Close();
+    chmod(script.GetFullPath().mb_str().data(), 0775);
+}
+
+void ClusterConfig::RunScript(const wxString& name)
+{
+    wxFileName script(GetDeploymentPath(), name);
+    wxExecute(script.GetFullPath(), wxEXEC_SYNC);
 }
