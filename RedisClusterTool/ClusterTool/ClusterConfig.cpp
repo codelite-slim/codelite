@@ -143,8 +143,10 @@ void ClusterConfig::Run()
     int size = GetSize();
     wxString runInstancesScript;
     wxString stopInstancesScript;
+    wxString runValgrindInstancesScript;
     runInstancesScript << "#!/bin/bash\n";
     stopInstancesScript << "#!/bin/bash\n";
+    runValgrindInstancesScript << "#!/bin/bash\n";
     
     stopInstancesScript << 
 "stopRedis()\n"
@@ -160,6 +162,11 @@ void ClusterConfig::Run()
 ;
 
     runInstancesScript << "base_dir=" << Utils::WrapWithQuotes(GetDeploymentPath()) << "\n";
+    runInstancesScript << "redis_server=" << redisServer << "\n";
+    
+    runValgrindInstancesScript << "base_dir=" << Utils::WrapWithQuotes(GetDeploymentPath()) << "\n";
+    runValgrindInstancesScript << "redis_server=/usr/bin/vlagrind " << redisServer << "\n";
+    
     for(int i = port; i < (port + size); ++i) {
         wxFileName d(GetDeploymentPath(), "");
         d.AppendDir(wxString() << i);
@@ -168,12 +175,16 @@ void ClusterConfig::Run()
         command << redisServer;
         command << " " << GetRedisConfigFileName(i);
         runInstancesScript << "cd $base_dir/" << i << " && " << redisServer << " redis.conf &\n";
+        runValgrindInstancesScript << "cd $base_dir/" << i << " && " << redisServer << " redis.conf &\n";
         stopInstancesScript << "stopRedis " << i << "\n";
     }
     
     // Create the run script
     MainFrame::Log("Generating run-instances.sh script...");
     WriteScript("run-instances.sh", runInstancesScript);
+    
+    MainFrame::Log("Generating run-vg-instances.sh script...");
+    WriteScript("run-vg-instances.sh", runValgrindInstancesScript);
     
     MainFrame::Log("Generating stop-instances.sh script...");
     WriteScript("stop-instances.sh", stopInstancesScript);
