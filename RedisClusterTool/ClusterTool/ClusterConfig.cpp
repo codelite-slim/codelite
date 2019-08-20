@@ -8,6 +8,9 @@
 #include <wx/tokenzr.h>
 #include <wx/utils.h>
 #include "MainFrame.h"
+#include "NodeInfo.h"
+#include "ClusterManager.h"
+#include <wx/utils.h>
 
 ClusterConfig::ClusterConfig(ClusterPage* win)
 {
@@ -69,7 +72,9 @@ void ClusterConfig::SetClusters(const wxArrayString& arr)
 
 wxString ClusterConfig::GetPrefix() const
 {
-    if(m_name.IsEmpty()) { return ""; }
+    if(m_name.IsEmpty()) {
+        return "";
+    }
     return (wxString() << "/Cluster/" << m_name);
 }
 
@@ -112,6 +117,7 @@ wxString ClusterConfig::GetDeploymentPath() const
 
 void ClusterConfig::Run()
 {
+    wxBusyCursor bc;
     wxConfigBase* conf = wxConfigBase::Get();
     wxString redisServer;
     conf->Read("/Settings/redis-server", &redisServer);
@@ -119,18 +125,24 @@ void ClusterConfig::Run()
         ::wxMessageBox("Unable to locate redis-server", "Error", wxICON_ERROR | wxCENTRE);
         return;
     }
-
+    redisServer = Utils::WrapWithQuotes(redisServer);
+    
     wxString redisCli;
     conf->Read("/Settings/redis-cli", &redisCli);
     if(!wxFileName::FileExists(redisCli)) {
         ::wxMessageBox("Unable to locate redis-cli", "Error", wxICON_ERROR | wxCENTRE);
         return;
     }
-
+    
+    redisCli = Utils::WrapWithQuotes(redisCli);
     // Just incase, deploy it. This will create all the needed files
+    MainFrame::Log("Creating configuration files...");
     Deploy();
+    MainFrame::Log("Done");
 
     // Execute the instances
+
+    MainFrame::Log("Starting instances...");
     int port = GetFirstPort();
     int size = GetSize();
     for(int i = port; i < (port + size); ++i) {
@@ -143,28 +155,62 @@ void ClusterConfig::Run()
 
         wxString command;
         command << redisServer;
-        command = Utils::WrapWithQuotes(command);
         command << " " << GetRedisConfigFileName(i);
-        MainFrame::Log(command);
+        MainFrame::Log(wxString() << "(" << redisConfig.GetPath() << ") " << command, 1);
         if(::wxExecute(command, wxEXEC_ASYNC | wxEXEC_MAKE_GROUP_LEADER) <= 0) {
             ::wxMessageBox(wxString() << "Unable to execute: " << command, "Error", wxICON_ERROR | wxCENTRE);
             return;
         }
     }
 
+    MainFrame::Log("Done");
+
+    MainFrame::Log("Forming cluster...");
     // Now, add each node into the cluster
     for(int i = (port + 1); i < (port + size); ++i) {
         AddNodeToCluster(redisCli, port, i);
     }
+    MainFrame::Log("Done");
 
-    if(HasReplica()) {}
+    if(HasReplica()) {
+        ::wxSleep(5);
+        // We need to get list of nodes
+        bool foundReplicates = false;
+        NodeInfo::Vec_t nodes = ClusterManager::Get().GetNodes(port);
+        for(const NodeInfo& node : nodes) {
+            if(!node.GetReplicateOf().IsEmpty()) {
+                foundReplicates = true;
+                break;
+            }
+        }
+
+        if(foundReplicates) {
+            ::wxMessageBox("I see that replication is already configured. Will not change this");
+            return;
+        }
+        
+        // Split the list into 2
+        // masters and replicas
+        size_t middle = nodes.size()/2;
+        NodeInfo::Vec_t masters(nodes.begin(), nodes.begin() + middle);
+        NodeInfo::Vec_t slaves(nodes.begin() + middle, nodes.end());
+        size_t size = std::min(masters.size(), slaves.size());
+        MainFrame::Log("Creating replicas...");
+        for(size_t i=0; i<size; ++i) {
+            // connect to the slave and tell it replicate the master
+            wxString command;
+            const NodeInfo& slave = slaves[i];
+            const NodeInfo& master = masters[i];
+            command << redisCli << " -p " << slave.GetPort() << " -c CLUSTERADMIN REPLICATE " << master.GetId();
+            MainFrame::Log(command);
+            ::wxExecute(command, wxEXEC_SYNC | wxEXEC_MAKE_GROUP_LEADER);
+        }
+        MainFrame::Log("Done");
+    }
 }
 
 wxString ClusterConfig::GetRedisConfigFileName(int port) const
 {
-    // wxString f;
-    // f << "redis." << port << ".conf";
-    // return f;
     return "redis.conf";
 }
 
@@ -172,8 +218,8 @@ void ClusterConfig::AddNodeToCluster(const wxString& redisCli, int mainPort, int
 {
     // build the command to execute:
     wxString command;
-    command << Utils::WrapWithQuotes(redisCli);
+    command << redisCli;
     command << " -p " << mainPort << " -c CLUSTERADMIN MEET 127.0.0.1 " << portToAdd;
-    MainFrame::Log(command);
-    ::wxExecute(command, wxEXEC_SYNC);
+    MainFrame::Log(command, 1);
+    ::wxExecute(command, wxEXEC_SYNC | wxEXEC_MAKE_GROUP_LEADER);
 }

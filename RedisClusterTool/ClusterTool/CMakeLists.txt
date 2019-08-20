@@ -9,12 +9,12 @@ project(cluster-tool)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 # Set default locations
-set(CL_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../cmake-build-Debug_Ubuntu/output)
+set(CL_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../cmake-build-Debug/output)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 
-set(CONFIGURATION_NAME "Debug_Ubuntu")
+set(CONFIGURATION_NAME "Debug")
 
 # Projects
 
@@ -94,14 +94,16 @@ link_directories(
 
 # Define the CXX sources
 set ( CXX_SRCS
-    ${CMAKE_CURRENT_LIST_DIR}/SettingsDlg.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/Utils.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ClusterConfig.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/Utils.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/NodeInfo.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/SettingsDlg.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ClusterPage.cpp
     ${CMAKE_CURRENT_LIST_DIR}/wxcrafter.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/main.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/wxcrafter_bitmaps.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ClusterManager.cpp
     ${CMAKE_CURRENT_LIST_DIR}/MainFrame.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/wxcrafter_bitmaps.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/main.cpp
 )
 
 if(WIN32)

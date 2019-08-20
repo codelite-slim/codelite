@@ -27,6 +27,7 @@ public:
 
         MainFrame* mainFrame = new MainFrame(NULL);
         SetTopWindow(mainFrame);
+        MainFrame::SetFrame(mainFrame);
         return GetTopWindow()->Show();
     }
 };

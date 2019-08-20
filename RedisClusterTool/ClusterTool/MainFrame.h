@@ -15,7 +15,7 @@ public:
     void OnAbout(wxCommandEvent& event);
     void Save(ClusterPage* page);
     static void SetFrame(MainFrame* frame);
-    static void Log(const wxString& message);
+    static void Log(const wxString& message, int depth = 0);
     
 protected:
     virtual void OnRunUI(wxUpdateUIEvent& event);

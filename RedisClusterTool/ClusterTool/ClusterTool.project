@@ -8,6 +8,10 @@
   <Description/>
   <Dependencies/>
   <VirtualDirectory Name="src">
+    <File Name="NodeInfo.cpp"/>
+    <File Name="NodeInfo.h"/>
+    <File Name="ClusterManager.cpp"/>
+    <File Name="ClusterManager.h"/>
     <File Name="Utils.cpp"/>
     <File Name="Utils.hpp"/>
     <File Name="SettingsDlg.cpp"/>
@@ -44,9 +48,9 @@
       <Compiler Options="-g;-O0;-Wall;$(shell wx-config --cflags) ;-std=c++11" C_Options="-g;-O0;-Wall" Assembler="" Required="yes" PreCompiledHeader="" PCHInCommandLine="no" PCHFlags="" PCHFlagsPolicy="0">
         <IncludePath Value="."/>
       </Compiler>
-      <Linker Options="$(shell wx-config --libs)" Required="yes"/>
+      <Linker Options="$(shell wx-config --libs std,stc)" Required="yes"/>
       <ResourceCompiler Options="$(shell wx-config --rcflags)" Required="no"/>
-      <General OutputFile="cluster-tool" IntermediateDirectory="./Debug" Command="$(WorkspacePath)/cmake-build-$(WorkspaceConfiguration)/output/cluster-tool" CommandArguments="" UseSeparateDebugArgs="no" DebugArguments="" WorkingDirectory="$(IntermediateDirectory)" PauseExecWhenProcTerminates="no" IsGUIProgram="no" IsEnabled="yes"/>
+      <General OutputFile="cluster-tool" IntermediateDirectory="./Debug" Command="$(WorkspacePath)/cmake-build-$(WorkspaceConfiguration)/output/cluster-tool" CommandArguments="" UseSeparateDebugArgs="no" DebugArguments="" WorkingDirectory="$(IntermediateDirectory)" PauseExecWhenProcTerminates="no" IsGUIProgram="yes" IsEnabled="yes"/>
       <BuildSystem Name="CMake">-DCMAKE_C_COMPILER=/usr/bin/gcc72 -DCMAKE_CXX_COMPILER=/usr/bin/g++72</BuildSystem>
       <Environment EnvVarSetName="&lt;Use Defaults&gt;" DbgSetName="&lt;Use Defaults&gt;">
         <![CDATA[LD_LIBRARY_PATH=/usr/local/lib]]>

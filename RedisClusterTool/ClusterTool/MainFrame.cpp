@@ -139,10 +139,11 @@ void MainFrame::SetFrame(MainFrame* frame)
     m_mainFrame = frame;
 }
 
-void MainFrame::Log(const wxString& message)
+void MainFrame::Log(const wxString& message, int depth)
 {
+    wxString prefix = wxString(' ', (4 * depth));
     m_mainFrame->GetStcLog()->ScrollToEnd();
-    m_mainFrame->GetStcLog()->AppendText(message + "\n");
+    m_mainFrame->GetStcLog()->AppendText(prefix + message + "\n");
     m_mainFrame->GetStcLog()->SetInsertionPointEnd();
     m_mainFrame->GetStcLog()->ClearSelections();
     m_mainFrame->GetStcLog()->ScrollToEnd();
