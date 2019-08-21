@@ -4,6 +4,7 @@
 #include <wx/arrstr.h>
 #include <wx/string.h>
 #include <wx/filename.h>
+#include "NodeInfo.h"
 
 class ClusterPage;
 class ClusterConfig
@@ -20,10 +21,11 @@ protected:
 
 protected:
     wxString GetPrefix() const;
-    void AddNodeToCluster(const wxString& redisCli, int mainPort, int portToAdd);
+    void AddNodeToCluster(const wxString& redisCli, int mainPort, int portToAdd, int clusterSize);
     void CreateScripts();
     void WriteScript(const wxString& name, const wxString& content);
     void RunScript(const wxString& name);
+    void AssignSlots(const NodeInfo::Vec_t& nodes, const wxString& redisCli);
     
 public:
     ClusterConfig(const wxString& name = "");
@@ -34,7 +36,7 @@ public:
     void Save();
     void CreateConfigurations();
     void Run();
-    
+
     static wxArrayString GetAllClusters();
     static void SetClusters(const wxArrayString& arr);
 
