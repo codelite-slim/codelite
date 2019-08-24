@@ -59,10 +59,11 @@ add_definitions(-O0)
 add_definitions(-Wall)
 add_definitions(-std=c++11)
 add_definitions(
-    -D_FILE_OFFSET_BITS=64
-    -DwxDEBUG_LEVEL=0
+    -DHAVE_W32API_H
+    -D__WXMSW__
+    -DNDEBUG
+    -D_UNICODE
     -DWXUSINGDLL
-    -D__WXGTK__
 )
 
 
@@ -74,6 +75,7 @@ execute_process(COMMAND
     OUTPUT_STRIP_TRAILING_WHITESPACE)
 string(STRIP ${CL_TMP_VAR} CL_VAR_2)
 set(LINK_OPTIONS ${CL_VAR_2})
+set(LINK_OPTIONS ${LINK_OPTIONS} -mwindows)
 
 
 if(WIN32)
@@ -115,7 +117,7 @@ endif(WIN32)
 
 set_source_files_properties(
     ${CXX_SRCS} PROPERTIES COMPILE_FLAGS 
-    " -g -O0 -Wall -pthread -std=c++11")
+    " -g -O0 -Wall -mthreads -Wno-ctor-dtor-privacy -pipe -fmessage-length=0 -fno-keep-inline-dllexport  -std=c++11")
 
 if(WIN32)
     enable_language(RC)
