@@ -72,22 +72,22 @@ static wxString GetMakeDirCmd(BuildConfigPtr bldConf, const wxString& relPath = 
     return text;
 }
 
-BuilderGnuMake::BuilderGnuMake()
-    : Builder("Default")
+BuilderGNUMakeClassic::BuilderGNUMakeClassic()
+    : Builder("Classic (DEPRECATED)")
     , m_objectChunks(1)
     , m_projectFilesMetadata(nullptr)
 {
 }
 
-BuilderGnuMake::BuilderGnuMake(const wxString& name, const wxString& buildTool, const wxString& buildToolOptions)
+BuilderGNUMakeClassic::BuilderGNUMakeClassic(const wxString& name, const wxString& buildTool, const wxString& buildToolOptions)
     : Builder(name)
     , m_projectFilesMetadata(nullptr)
 {
 }
 
-BuilderGnuMake::~BuilderGnuMake() {}
+BuilderGNUMakeClassic::~BuilderGNUMakeClassic() {}
 
-bool BuilderGnuMake::Export(const wxString& project, const wxString& confToBuild, const wxString& arguments,
+bool BuilderGNUMakeClassic::Export(const wxString& project, const wxString& confToBuild, const wxString& arguments,
                             bool isProjectOnly, bool force, wxString& errMsg)
 {
     if(project.IsEmpty()) { return false; }
@@ -430,7 +430,7 @@ bool BuilderGnuMake::Export(const wxString& project, const wxString& confToBuild
     return true;
 }
 
-void BuilderGnuMake::GenerateMakefile(ProjectPtr proj, const wxString& confToBuild, bool force,
+void BuilderGNUMakeClassic::GenerateMakefile(ProjectPtr proj, const wxString& confToBuild, bool force,
                                       const wxArrayString& depsProj)
 {
     wxString pname(proj->GetName());
@@ -551,7 +551,7 @@ void BuilderGnuMake::GenerateMakefile(ProjectPtr proj, const wxString& confToBui
     proj->SetModified(false);
 }
 
-void BuilderGnuMake::CreateMakeDirsTarget(ProjectPtr proj, BuildConfigPtr bldConf, const wxString& targetName,
+void BuilderGNUMakeClassic::CreateMakeDirsTarget(ProjectPtr proj, BuildConfigPtr bldConf, const wxString& targetName,
                                           wxString& text)
 {
     text << "\n";
@@ -563,7 +563,7 @@ void BuilderGnuMake::CreateMakeDirsTarget(ProjectPtr proj, BuildConfigPtr bldCon
     text << wxT("\t") << GetMakeDirCmd(bldConf) << wxT("\n");
 }
 
-void BuilderGnuMake::CreateSrcList(ProjectPtr proj, const wxString& confToBuild, wxString& text)
+void BuilderGNUMakeClassic::CreateSrcList(ProjectPtr proj, const wxString& confToBuild, wxString& text)
 {
     std::vector<wxFileName> files;
 
@@ -613,7 +613,7 @@ void BuilderGnuMake::CreateSrcList(ProjectPtr proj, const wxString& confToBuild,
     text << wxT("\n\n");
 }
 
-void BuilderGnuMake::CreateObjectList(ProjectPtr proj, const wxString& confToBuild, wxString& text)
+void BuilderGNUMakeClassic::CreateObjectList(ProjectPtr proj, const wxString& confToBuild, wxString& text)
 {
     m_objectChunks = 1;
     std::vector<wxFileName> files;
@@ -696,7 +696,7 @@ void BuilderGnuMake::CreateObjectList(ProjectPtr proj, const wxString& confToBui
     m_objectChunks = objCounter;
 }
 
-void BuilderGnuMake::CreateFileTargets(ProjectPtr proj, const wxString& confToBuild, wxString& text)
+void BuilderGNUMakeClassic::CreateFileTargets(ProjectPtr proj, const wxString& confToBuild, wxString& text)
 {
     // get the project specific build configuration for the workspace active
     // configuration
@@ -842,7 +842,7 @@ static wxString GetIntermediateFolder(BuildConfigPtr bldConf)
     return IntermediateDirectory;
 }
 
-void BuilderGnuMake::CreateCleanTargets(ProjectPtr proj, const wxString& confToBuild, wxString& text)
+void BuilderGNUMakeClassic::CreateCleanTargets(ProjectPtr proj, const wxString& confToBuild, wxString& text)
 {
     // get the project specific build configuration for the workspace active
     // configuration
@@ -910,7 +910,7 @@ void BuilderGnuMake::CreateCleanTargets(ProjectPtr proj, const wxString& confToB
     text << wxT("\n\n");
 }
 
-void BuilderGnuMake::CreateListMacros(ProjectPtr proj, const wxString& confToBuild, wxString& text)
+void BuilderGNUMakeClassic::CreateListMacros(ProjectPtr proj, const wxString& confToBuild, wxString& text)
 {
     // create a list of Sources
     // CreateSrcList(proj, confToBuild, text);  // Not used/needed for multi-step build
@@ -918,7 +918,7 @@ void BuilderGnuMake::CreateListMacros(ProjectPtr proj, const wxString& confToBui
     CreateObjectList(proj, confToBuild, text);
 }
 
-void BuilderGnuMake::CreateLinkTargets(const wxString& type, BuildConfigPtr bldConf, wxString& text,
+void BuilderGNUMakeClassic::CreateLinkTargets(const wxString& type, BuildConfigPtr bldConf, wxString& text,
                                        wxString& targetName, const wxString& projName, const wxArrayString& depsProj)
 {
     // incase project is type exe or dll, force link
@@ -972,7 +972,7 @@ void BuilderGnuMake::CreateLinkTargets(const wxString& type, BuildConfigPtr bldC
     }
 }
 
-void BuilderGnuMake::CreateTargets(const wxString& type, BuildConfigPtr bldConf, wxString& text,
+void BuilderGNUMakeClassic::CreateTargets(const wxString& type, BuildConfigPtr bldConf, wxString& text,
                                    const wxString& projName)
 {
     bool markRebuilt(true);
@@ -1030,7 +1030,7 @@ void BuilderGnuMake::CreateTargets(const wxString& type, BuildConfigPtr bldConf,
     }
 }
 
-void BuilderGnuMake::CreatePostBuildEvents(ProjectPtr proj, BuildConfigPtr bldConf, wxString& text)
+void BuilderGNUMakeClassic::CreatePostBuildEvents(ProjectPtr proj, BuildConfigPtr bldConf, wxString& text)
 {
     if(!HasPostbuildCommands(bldConf)) return;
 
@@ -1066,7 +1066,7 @@ void BuilderGnuMake::CreatePostBuildEvents(ProjectPtr proj, BuildConfigPtr bldCo
     text << wxT("\t@echo Done\n");
 }
 
-bool BuilderGnuMake::HasPrebuildCommands(BuildConfigPtr bldConf) const
+bool BuilderGNUMakeClassic::HasPrebuildCommands(BuildConfigPtr bldConf) const
 {
     BuildCommandList cmds;
     bldConf->GetPreBuildCommands(cmds);
@@ -1078,7 +1078,7 @@ bool BuilderGnuMake::HasPrebuildCommands(BuildConfigPtr bldConf) const
     return false;
 }
 
-void BuilderGnuMake::CreatePreBuildEvents(ProjectPtr proj, BuildConfigPtr bldConf, wxString& text)
+void BuilderGNUMakeClassic::CreatePreBuildEvents(ProjectPtr proj, BuildConfigPtr bldConf, wxString& text)
 {
     BuildCommandList cmds;
     BuildCommandList::iterator iter;
@@ -1118,7 +1118,7 @@ void BuilderGnuMake::CreatePreBuildEvents(ProjectPtr proj, BuildConfigPtr bldCon
     }
 }
 
-void BuilderGnuMake::CreateConfigsVariables(ProjectPtr proj, BuildConfigPtr bldConf, wxString& text)
+void BuilderGNUMakeClassic::CreateConfigsVariables(ProjectPtr proj, BuildConfigPtr bldConf, wxString& text)
 {
     wxString name = bldConf->GetName();
     name = NormalizeConfigName(name);
@@ -1279,7 +1279,7 @@ void BuilderGnuMake::CreateConfigsVariables(ProjectPtr proj, BuildConfigPtr bldC
     text << wxT("\n\n");
 }
 
-wxString BuilderGnuMake::ParseIncludePath(const wxString& paths, const wxString& projectName, const wxString& selConf)
+wxString BuilderGNUMakeClassic::ParseIncludePath(const wxString& paths, const wxString& projectName, const wxString& selConf)
 {
     // convert semi-colon delimited string into GNU list of
     // include paths:
@@ -1294,7 +1294,7 @@ wxString BuilderGnuMake::ParseIncludePath(const wxString& paths, const wxString&
     return incluedPath;
 }
 
-wxString BuilderGnuMake::ParseLibPath(const wxString& paths, const wxString& projectName, const wxString& selConf)
+wxString BuilderGNUMakeClassic::ParseLibPath(const wxString& paths, const wxString& projectName, const wxString& selConf)
 {
     // convert semi-colon delimited string into GNU list of
     // lib path
@@ -1310,7 +1310,7 @@ wxString BuilderGnuMake::ParseLibPath(const wxString& paths, const wxString& pro
     return libPath;
 }
 
-wxString BuilderGnuMake::ParsePreprocessor(const wxString& prep)
+wxString BuilderGNUMakeClassic::ParsePreprocessor(const wxString& prep)
 {
     wxString preprocessor(wxEmptyString);
     wxStringTokenizer tkz(prep, wxT(";"), wxTOKEN_STRTOK);
@@ -1328,7 +1328,7 @@ wxString BuilderGnuMake::ParsePreprocessor(const wxString& prep)
     return preprocessor;
 }
 
-wxString BuilderGnuMake::ParseLibs(const wxString& libs)
+wxString BuilderGNUMakeClassic::ParseLibs(const wxString& libs)
 {
     // convert semi-colon delimited string into GNU list of
     // libs
@@ -1353,7 +1353,7 @@ wxString BuilderGnuMake::ParseLibs(const wxString& libs)
     return slibs;
 }
 
-wxString BuilderGnuMake::GetBuildCommand(const wxString& project, const wxString& confToBuild,
+wxString BuilderGNUMakeClassic::GetBuildCommand(const wxString& project, const wxString& confToBuild,
                                          const wxString& arguments)
 {
     wxString errMsg, cmd;
@@ -1372,7 +1372,7 @@ wxString BuilderGnuMake::GetBuildCommand(const wxString& project, const wxString
     return cmd;
 }
 
-wxString BuilderGnuMake::GetCleanCommand(const wxString& project, const wxString& confToBuild,
+wxString BuilderGNUMakeClassic::GetCleanCommand(const wxString& project, const wxString& confToBuild,
                                          const wxString& arguments)
 {
     wxString errMsg, cmd;
@@ -1394,7 +1394,7 @@ wxString BuilderGnuMake::GetCleanCommand(const wxString& project, const wxString
     return cmd;
 }
 
-wxString BuilderGnuMake::GetPOBuildCommand(const wxString& project, const wxString& confToBuild,
+wxString BuilderGNUMakeClassic::GetPOBuildCommand(const wxString& project, const wxString& confToBuild,
                                            const wxString& arguments)
 {
     wxString errMsg, cmd;
@@ -1407,7 +1407,7 @@ wxString BuilderGnuMake::GetPOBuildCommand(const wxString& project, const wxStri
     return cmd;
 }
 
-wxString BuilderGnuMake::GetPOCleanCommand(const wxString& project, const wxString& confToBuild,
+wxString BuilderGNUMakeClassic::GetPOCleanCommand(const wxString& project, const wxString& confToBuild,
                                            const wxString& arguments)
 {
     wxString errMsg, cmd;
@@ -1420,7 +1420,7 @@ wxString BuilderGnuMake::GetPOCleanCommand(const wxString& project, const wxStri
     return cmd;
 }
 
-wxString BuilderGnuMake::GetSingleFileCmd(const wxString& project, const wxString& confToBuild,
+wxString BuilderGNUMakeClassic::GetSingleFileCmd(const wxString& project, const wxString& confToBuild,
                                           const wxString& arguments, const wxString& fileName)
 {
     wxString errMsg, cmd;
@@ -1464,7 +1464,7 @@ wxString BuilderGnuMake::GetSingleFileCmd(const wxString& project, const wxStrin
     return EnvironmentConfig::Instance()->ExpandVariables(cmd, true);
 }
 
-wxString BuilderGnuMake::GetPreprocessFileCmd(const wxString& project, const wxString& confToBuild,
+wxString BuilderGNUMakeClassic::GetPreprocessFileCmd(const wxString& project, const wxString& confToBuild,
                                               const wxString& arguments, const wxString& fileName, wxString& errMsg)
 {
     ProjectPtr proj = clCxxWorkspaceST::Get()->FindProjectByName(project, errMsg);
@@ -1501,7 +1501,7 @@ wxString BuilderGnuMake::GetPreprocessFileCmd(const wxString& project, const wxS
     return EnvironmentConfig::Instance()->ExpandVariables(cmd, true);
 }
 
-wxString BuilderGnuMake::GetCdCmd(const wxFileName& path1, const wxFileName& path2)
+wxString BuilderGNUMakeClassic::GetCdCmd(const wxFileName& path1, const wxFileName& path2)
 {
     wxString cd_cmd(wxT("@"));
     if(path2.GetPath().IsEmpty()) { return cd_cmd; }
@@ -1510,7 +1510,7 @@ wxString BuilderGnuMake::GetCdCmd(const wxFileName& path1, const wxFileName& pat
     return cd_cmd;
 }
 
-void BuilderGnuMake::CreateCustomPostBuildEvents(BuildConfigPtr bldConf, wxString& text)
+void BuilderGNUMakeClassic::CreateCustomPostBuildEvents(BuildConfigPtr bldConf, wxString& text)
 {
     BuildCommandList cmds;
     BuildCommandList::iterator iter;
@@ -1533,7 +1533,7 @@ void BuilderGnuMake::CreateCustomPostBuildEvents(BuildConfigPtr bldConf, wxStrin
     }
 }
 
-void BuilderGnuMake::CreateCustomPreBuildEvents(BuildConfigPtr bldConf, wxString& text)
+void BuilderGNUMakeClassic::CreateCustomPreBuildEvents(BuildConfigPtr bldConf, wxString& text)
 {
     BuildCommandList cmds;
     BuildCommandList::iterator iter;
@@ -1556,7 +1556,7 @@ void BuilderGnuMake::CreateCustomPreBuildEvents(BuildConfigPtr bldConf, wxString
     }
 }
 
-wxString BuilderGnuMake::GetProjectMakeCommand(const wxFileName& wspfile, const wxFileName& projectPath,
+wxString BuilderGNUMakeClassic::GetProjectMakeCommand(const wxFileName& wspfile, const wxFileName& projectPath,
                                                ProjectPtr proj, const wxString& confToBuild)
 {
     BuildConfigPtr bldConf = clCxxWorkspaceST::Get()->GetProjBuildConf(proj->GetName(), confToBuild);
@@ -1598,7 +1598,7 @@ wxString BuilderGnuMake::GetProjectMakeCommand(const wxFileName& wspfile, const 
     return makeCommand;
 }
 
-wxString BuilderGnuMake::GetProjectMakeCommand(ProjectPtr proj, const wxString& confToBuild, const wxString& target,
+wxString BuilderGNUMakeClassic::GetProjectMakeCommand(ProjectPtr proj, const wxString& confToBuild, const wxString& target,
                                                size_t flags)
 {
     bool bCleanOnly = flags & kCleanOnly;
@@ -1647,7 +1647,7 @@ wxString BuilderGnuMake::GetProjectMakeCommand(ProjectPtr proj, const wxString& 
     return makeCommand;
 }
 
-void BuilderGnuMake::CreatePreCompiledHeaderTarget(BuildConfigPtr bldConf, wxString& text)
+void BuilderGNUMakeClassic::CreatePreCompiledHeaderTarget(BuildConfigPtr bldConf, wxString& text)
 {
     wxString filename = bldConf->GetPrecompiledHeader();
     filename.Trim().Trim(false);
@@ -1668,7 +1668,7 @@ void BuilderGnuMake::CreatePreCompiledHeaderTarget(BuildConfigPtr bldConf, wxStr
     text << wxT("\n");
 }
 
-wxString BuilderGnuMake::GetPORebuildCommand(const wxString& project, const wxString& confToBuild,
+wxString BuilderGNUMakeClassic::GetPORebuildCommand(const wxString& project, const wxString& confToBuild,
                                              const wxString& arguments)
 {
     wxString errMsg, cmd;
@@ -1681,7 +1681,7 @@ wxString BuilderGnuMake::GetPORebuildCommand(const wxString& project, const wxSt
     return cmd;
 }
 
-wxString BuilderGnuMake::GetBuildToolCommand(const wxString& project, const wxString& confToBuild,
+wxString BuilderGNUMakeClassic::GetBuildToolCommand(const wxString& project, const wxString& confToBuild,
                                              const wxString& arguments, bool isCommandlineCommand) const
 {
     wxString jobsCmd;
@@ -1715,7 +1715,7 @@ wxString BuilderGnuMake::GetBuildToolCommand(const wxString& project, const wxSt
     }
 }
 
-wxString BuilderGnuMake::DoGetCompilerMacro(const wxString& filename)
+wxString BuilderGNUMakeClassic::DoGetCompilerMacro(const wxString& filename)
 {
     wxString compilerMacro(wxT("$(CXX)"));
     switch(FileExtManager::GetType(filename)) {
@@ -1730,7 +1730,7 @@ wxString BuilderGnuMake::DoGetCompilerMacro(const wxString& filename)
     return compilerMacro;
 }
 
-wxString BuilderGnuMake::DoGetTargetPrefix(const wxFileName& filename, const wxString& cwd, CompilerPtr cmp)
+wxString BuilderGNUMakeClassic::DoGetTargetPrefix(const wxFileName& filename, const wxString& cwd, CompilerPtr cmp)
 {
     wxString lastDir;
     wxString ret;
@@ -1765,7 +1765,7 @@ wxString BuilderGnuMake::DoGetTargetPrefix(const wxFileName& filename, const wxS
     return ret;
 }
 
-wxString BuilderGnuMake::DoGetMarkerFileDir(const wxString& projname, const wxString& projectPath)
+wxString BuilderGNUMakeClassic::DoGetMarkerFileDir(const wxString& projname, const wxString& projectPath)
 {
     BuildMatrixPtr matrix = clCxxWorkspaceST::Get()->GetBuildMatrix();
     wxString workspaceSelConf = matrix->GetSelectedConfigurationName();
@@ -1794,7 +1794,7 @@ wxString BuilderGnuMake::DoGetMarkerFileDir(const wxString& projname, const wxSt
         return path;
 }
 
-bool BuilderGnuMake::HasPostbuildCommands(BuildConfigPtr bldConf) const
+bool BuilderGNUMakeClassic::HasPostbuildCommands(BuildConfigPtr bldConf) const
 {
     BuildCommandList cmds;
     bldConf->GetPostBuildCommands(cmds);
@@ -1806,7 +1806,7 @@ bool BuilderGnuMake::HasPostbuildCommands(BuildConfigPtr bldConf) const
     return false;
 }
 
-bool BuilderGnuMake::SendBuildEvent(int eventId, const wxString& projectName, const wxString& configurationName)
+bool BuilderGNUMakeClassic::SendBuildEvent(int eventId, const wxString& projectName, const wxString& configurationName)
 {
     clBuildEvent e(eventId);
     e.SetProjectName(projectName);

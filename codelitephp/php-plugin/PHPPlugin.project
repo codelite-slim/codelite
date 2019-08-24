@@ -357,7 +357,7 @@
         <SearchPaths/>
       </Completion>
     </Configuration>
-    <Configuration Name="Win_x64_Debug" CompilerType="g++-64" DebuggerType="GNU gdb debugger" Type="Dynamic Library" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
+    <Configuration Name="Win_x64_Debug" CompilerType="GCC (x86_64)" DebuggerType="GNU gdb debugger" Type="Dynamic Library" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
       <Compiler Options="-g;$(shell wx-config --cxxflags --unicode=yes );-O0;-Wall" C_Options="-g" Assembler="" Required="yes" PreCompiledHeader="" PCHInCommandLine="no" PCHFlags="" PCHFlagsPolicy="0">
         <IncludePath Value="."/>
         <IncludePath Value="../../Interfaces"/>
@@ -373,8 +373,7 @@
         <Preprocessor Value="USE_SFTP=1"/>
       </Compiler>
       <Linker Options="$(shell wx-config  --libs std,stc,webview,propgrid --unicode=yes)" Required="yes">
-        <LibraryPath Value="../../lib/gcc_lib"/>
-        <LibraryPath Value="../lib"/>
+        <LibraryPath Value="$(WorkspacePath)/build-$(WorkspaceConfiguration)/lib"/>
         <Library Value="libplugin_sdkud.dll"/>
         <Library Value="libCodeLiteud.dll"/>
         <Library Value="libwxsqlite3ud.dll"/>
@@ -394,7 +393,7 @@ PATH=$(WXWIN)\lib\gcc_dll;$(PATH)]]>
       </Debugger>
       <PreBuild/>
       <PostBuild>
-        <Command Enabled="yes">copy $(IntermediateDirectory)\PHP-dbg.dll ..\..\Runtime\plugins</Command>
+        <Command Enabled="yes">copy "$(OutputFile)" ..\..\Runtime\plugins</Command>
       </PostBuild>
       <CustomBuild Enabled="no">
         <RebuildCommand/>
@@ -420,7 +419,7 @@ PATH=$(WXWIN)\lib\gcc_dll;$(PATH)]]>
 ../sdk/wxscintilla/include</SearchPaths>
       </Completion>
     </Configuration>
-    <Configuration Name="Win_x64_Release" CompilerType="g++-64" DebuggerType="GNU gdb debugger" Type="Dynamic Library" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
+    <Configuration Name="Win_x64_Release" CompilerType="GCC (x86_64)" DebuggerType="GNU gdb debugger" Type="Dynamic Library" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
       <Compiler Options="-O2;-std=c++11;-Wall;$(shell wx-config --cxxflags);-Winvalid-pch" C_Options="-O2" Assembler="" Required="yes" PreCompiledHeader="../../PCH/precompiled_header_release.h" PCHInCommandLine="yes" PCHFlags="$(shell wx-config --cxxflags --unicode=yes --debug=no) -O2" PCHFlagsPolicy="0">
         <IncludePath Value="."/>
         <IncludePath Value="../../Interfaces"/>
@@ -436,7 +435,7 @@ PATH=$(WXWIN)\lib\gcc_dll;$(PATH)]]>
         <Preprocessor Value="USE_SFTP=1"/>
       </Compiler>
       <Linker Options=";-O2;$(shell wx-config --debug=no --libs std,stc,webview,propgrid --unicode=yes)" Required="yes">
-        <LibraryPath Value="../../lib/gcc_lib"/>
+        <LibraryPath Value="$(WorkspacePath)/build-$(WorkspaceConfiguration)/lib"/>
         <LibraryPath Value="../lib"/>
         <Library Value="libplugin_sdku.dll"/>
         <Library Value="libCodeLiteu.dll"/>
@@ -456,7 +455,7 @@ PATH=$(WXWIN)\lib\gcc_dll;$(PATH)]]>
       </Debugger>
       <PreBuild/>
       <PostBuild>
-        <Command Enabled="yes">copy $(IntermediateDirectory)\*.dll ..\..\Runtime\plugins</Command>
+        <Command Enabled="yes">copy "$(OutputFile)"  ..\..\Runtime\plugins</Command>
       </PostBuild>
       <CustomBuild Enabled="no">
         <RebuildCommand/>
@@ -481,8 +480,8 @@ PATH=$(WXWIN)\lib\gcc_dll;$(PATH)]]>
 ../CodeLite</SearchPaths>
       </Completion>
     </Configuration>
-    <Configuration Name="Win_x86_Release" CompilerType="g++-64" DebuggerType="GNU gdb debugger" Type="Dynamic Library" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
-      <Compiler Options="$(shell wx-config --cxxflags --unicode=yes --debug=no);-O2;-Winvalid-pch" C_Options="-O2" Assembler="" Required="yes" PreCompiledHeader="../../PCH/precompiled_header_release.h" PCHInCommandLine="yes" PCHFlags="$(shell wx-config --cxxflags --unicode=yes --debug=no) -O2" PCHFlagsPolicy="0">
+    <Configuration Name="Win_x86_Release" CompilerType="GCC (i686)" DebuggerType="GNU gdb debugger" Type="Dynamic Library" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
+      <Compiler Options="$(shell wx-config --cxxflags --unicode=yes --debug=no);-O2;-Winvalid-pch" C_Options="-O2" Assembler="" Required="yes" PreCompiledHeader="../../PCH/precompiled_header_release_32.h" PCHInCommandLine="yes" PCHFlags="$(shell wx-config --cxxflags --unicode=yes --debug=no) -O2" PCHFlagsPolicy="0">
         <IncludePath Value="."/>
         <IncludePath Value="../../Interfaces"/>
         <IncludePath Value="../../CodeLite"/>
@@ -497,10 +496,9 @@ PATH=$(WXWIN)\lib\gcc_dll;$(PATH)]]>
         <Preprocessor Value="USE_SFTP=1"/>
       </Compiler>
       <Linker Options=";-O2;$(shell wx-config --debug=no --libs std,stc,webview,propgrid --unicode=yes)" Required="yes">
-        <LibraryPath Value="../../lib/gcc_lib"/>
-        <LibraryPath Value="../lib"/>
+        <LibraryPath Value="$(WorkspacePath)/build-$(WorkspaceConfiguration)/lib"/>
         <Library Value="libplugin_sdku.dll"/>
-        <Library Value="libCodeLiteu.dll"/>
+        <Library Value="libcodeliteu.dll"/>
         <Library Value="libwxsqlite3u.dll"/>
         <Library Value="libPHPParser.a"/>
       </Linker>
@@ -517,7 +515,7 @@ PATH=$(WXWIN)\lib\gcc_dll;$(PATH)]]>
       </Debugger>
       <PreBuild/>
       <PostBuild>
-        <Command Enabled="yes">copy "$(IntermediateDirectory)\PHP.dll" ..\..\Runtime\plugins</Command>
+        <Command Enabled="yes">copy "$(OutputFile)"  ..\..\Runtime32\plugins</Command>
       </PostBuild>
       <CustomBuild Enabled="no">
         <RebuildCommand/>
