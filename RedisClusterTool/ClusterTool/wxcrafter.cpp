@@ -284,6 +284,13 @@ ClusterPageBase::ClusterPageBase(wxWindow* parent, wxWindowID id, const wxPoint&
 
     flexGridSizer21->Add(m_checkBox45, 0, wxALL, WXC_FROM_DIP(5));
 
+    flexGridSizer21->Add(0, 0, 1, wxALL, WXC_FROM_DIP(5));
+
+    m_checkBoxProtectedMode = new wxCheckBox(this, wxID_ANY, _("Enable Protected Mode"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1,-1)), 0);
+    m_checkBoxProtectedMode->SetValue(false);
+
+    flexGridSizer21->Add(m_checkBoxProtectedMode, 0, wxALL, WXC_FROM_DIP(5));
+
     SetName(wxT("ClusterPageBase"));
     SetSize(wxDLG_UNIT(this, wxSize(500,300)));
     if (GetSizer()) {

@@ -114,6 +114,7 @@ protected:
     wxStaticText* m_staticText35;
     wxSpinCtrl* m_spinCtrl37;
     wxCheckBox* m_checkBox45;
+    wxCheckBox* m_checkBoxProtectedMode;
 
 protected:
 
@@ -127,6 +128,7 @@ public:
     wxStaticText* GetStaticText35() { return m_staticText35; }
     wxSpinCtrl* GetSpinCtrl37() { return m_spinCtrl37; }
     wxCheckBox* GetCheckBox45() { return m_checkBox45; }
+    wxCheckBox* GetCheckBoxProtectedMode() { return m_checkBoxProtectedMode; }
     ClusterPageBase(wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(500,300), long style = wxTAB_TRAVERSAL);
     virtual ~ClusterPageBase();
 };

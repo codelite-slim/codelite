@@ -9,12 +9,12 @@ project(cluster-tool)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 # Set default locations
-set(CL_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../cmake-build-Debug/output)
+set(CL_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../cmake-build-Release/output)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CL_OUTPUT_DIRECTORY})
 
-set(CONFIGURATION_NAME "Debug")
+set(CONFIGURATION_NAME "Release")
 
 # Projects
 
@@ -54,16 +54,14 @@ execute_process(COMMAND
     OUTPUT_STRIP_TRAILING_WHITESPACE)
 string(STRIP ${CL_TMP_VAR} CL_VAR_1)
 add_definitions(${CL_VAR_1})
-add_definitions(-g)
-add_definitions(-O0)
+add_definitions(-O2)
 add_definitions(-Wall)
-add_definitions(-std=c++11)
 add_definitions(
-    -DHAVE_W32API_H
-    -D__WXMSW__
     -DNDEBUG
-    -D_UNICODE
+    -D_FILE_OFFSET_BITS=64
+    -DwxDEBUG_LEVEL=0
     -DWXUSINGDLL
+    -D__WXGTK__
 )
 
 
@@ -75,7 +73,6 @@ execute_process(COMMAND
     OUTPUT_STRIP_TRAILING_WHITESPACE)
 string(STRIP ${CL_TMP_VAR} CL_VAR_2)
 set(LINK_OPTIONS ${CL_VAR_2})
-set(LINK_OPTIONS ${LINK_OPTIONS} -mwindows)
 
 
 if(WIN32)
@@ -96,16 +93,16 @@ link_directories(
 
 # Define the CXX sources
 set ( CXX_SRCS
-    ${CMAKE_CURRENT_LIST_DIR}/ClusterConfig.cpp
     ${CMAKE_CURRENT_LIST_DIR}/Utils.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ClusterPage.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ClusterConfig.cpp
     ${CMAKE_CURRENT_LIST_DIR}/NodeInfo.cpp
     ${CMAKE_CURRENT_LIST_DIR}/SettingsDlg.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/ClusterPage.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/main.cpp
     ${CMAKE_CURRENT_LIST_DIR}/wxcrafter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ClusterManager.cpp
     ${CMAKE_CURRENT_LIST_DIR}/MainFrame.cpp
     ${CMAKE_CURRENT_LIST_DIR}/wxcrafter_bitmaps.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/main.cpp
 )
 
 if(WIN32)
@@ -117,7 +114,7 @@ endif(WIN32)
 
 set_source_files_properties(
     ${CXX_SRCS} PROPERTIES COMPILE_FLAGS 
-    " -g -O0 -Wall -mthreads -Wno-ctor-dtor-privacy -pipe -fmessage-length=0 -fno-keep-inline-dllexport  -std=c++11")
+    " -O2 -Wall -pthread")
 
 if(WIN32)
     enable_language(RC)
@@ -165,7 +162,23 @@ if(UNIX)
     file(GLOB wxfilepaths ${WX_LIBS_ALL})
     install(FILES ${wxfilepaths} DESTINATION ${INSTALL_LIB_DIR})
 
+    # Create RPM package
+    message("-- Generating rpm target")
+    message("-- CPACK_PACKAGE_ARCHITECTURE amd64")
+    set(GTKNAME "gtk2")
+    set(CPACK_RPM_PACKAGE_AUTOREQ 0)
+    set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
+            "/usr/share/icons;/usr/share/locale/;/usr/share/locale/cs;/usr/share/locale/cs/LC_MESSAGES;/usr/share/locale/ru_RU;/usr/share/locale/ru_RU/LC_MESSAGES;/usr/share/locale/zh_CN;/usr/share/locale/zh_CN/LC_MESSAGES;/usr/share/man;/usr/share/icons/hicolor;/usr/share/icons/hicolor/128x128;/usr/share/icons/hicolor/128x128/apps;/usr/share/icons/hicolor/256x256;/usr/share/icons/hicolor/256x256/apps;/usr/share/icons/hicolor/32x32;/usr/share/icons/hicolor/32x32/apps;/usr/share/icons/hicolor/64x64;/usr/share/icons/hicolor/64x64/apps;/usr/share/applications")
+    set(CPACK_RPM_PACKAGE_REQUIRES          "gcc72, gcc72-c++, gtk2")
+    set(CPACK_GENERATOR                     "RPM")
+    set(CPACK_RPM_PACKAGE_NAME              "cluster-tool")
+    set(CPACK_RPM_FILE_NAME                 "cluster-tool-1.0.rpm")
+    set(CPACK_RPM_PACKAGE_VERSION           "1.0.0-${GTKNAME}")
+    set(CPACK_PACKAGE_CONTACT               "Eran Ifrah <eran@codelite.org>")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY   "Redis Cluser Tool")
+    set(CPACK_PACKAGE_VENDOR                "Eran Ifrah")
+    set(CPACK_STRIP_FILES TRUE)
+    INCLUDE(CPack)
 endif(UNIX)
-
 #}}}}
 

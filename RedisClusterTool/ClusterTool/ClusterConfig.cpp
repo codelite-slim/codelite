@@ -102,6 +102,11 @@ void ClusterConfig::CreateConfigurations()
                     << "cluster-node-timeout 5000\n"
                     << "appendonly yes\n"
                     << "logfile " << logfile.GetFullPath() << "\n";
+            if(!EnableProtectedMode()) {
+                    content << "protected-mode no" << "\n";
+            } else {
+                    content << "protected-mode yes" << "\n";
+            }
             fp.Write(content);
             fp.Close();
         }

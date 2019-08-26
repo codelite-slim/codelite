@@ -40,7 +40,7 @@ void MainFrame::OnAbout(wxCommandEvent& event)
     wxAboutDialogInfo info;
     info.SetCopyright(_("Public Domain"));
     info.SetLicence(_("Public Domain"));
-    info.SetDescription(_("Create Redis Cluster Tool"));
+    info.SetDescription(_("Redis Cluster Tool"));
     ::wxAboutBox(info);
 }
 void MainFrame::OnNewCluster(wxCommandEvent& event)
@@ -131,4 +131,7 @@ void MainFrame::Log(const wxString& message, int depth)
     m_mainFrame->GetStcLog()->SetInsertionPointEnd();
     m_mainFrame->GetStcLog()->ClearSelections();
     m_mainFrame->GetStcLog()->ScrollToEnd();
+}
+void MainFrame::OnRunInstances(wxCommandEvent& event)
+{
 }

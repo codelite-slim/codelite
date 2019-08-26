@@ -10,7 +10,10 @@ class ClusterPage;
 class ClusterConfig
 {
 public:
-    enum eFlags { kEnableReplica = (1 << 0) };
+    enum eFlags {   
+                    kEnableReplica = (1 << 0), 
+                    kProtectedMode = (1<<1),
+                };
 
 protected:
     wxString m_name;
@@ -26,7 +29,7 @@ protected:
     void WriteScript(const wxString& name, const wxString& content);
     void RunScript(const wxString& name);
     void AssignSlots(const NodeInfo::Vec_t& nodes, const wxString& redisCli);
-    
+
 public:
     ClusterConfig(const wxString& name = "");
     ClusterConfig(ClusterPage* win);
@@ -51,9 +54,19 @@ public:
             m_flags &= ~kEnableReplica;
         }
     }
+    
+    void SetProtectedMode(bool b)
+    {
+        if(b) {
+            m_flags |= kProtectedMode;
+        } else {
+            m_flags &= ~kProtectedMode;
+        }
+    }
 
     bool HasReplica() const { return m_flags & kEnableReplica; }
-
+    bool EnableProtectedMode() const { return m_flags & kProtectedMode; }
+    
     ClusterConfig& SetFirstPort(int firstPort)
     {
         this->m_firstPort = firstPort;

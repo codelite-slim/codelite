@@ -18,6 +18,7 @@ public:
     static void Log(const wxString& message, int depth = 0);
     
 protected:
+    virtual void OnRunInstances(wxCommandEvent& event);
     virtual void OnPreferences(wxCommandEvent& event);
     ClusterPage* GetActivePage();
 
