@@ -76,7 +76,6 @@ void PostCommandEvent(wxWindow* destination, wxWindow* FocusedControl)
     event.SetEventObject(FocusedControl);
     wxPostEvent(destination, event);
 }
-
 clPluginsFindBar::clPluginsFindBar(wxWindow* parent, wxWindowID id)
     : QuickFindBarBase(parent, id)
     , m_sci(NULL)
