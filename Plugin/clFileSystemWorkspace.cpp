@@ -24,7 +24,6 @@
 wxDEFINE_EVENT(wxEVT_FS_SCAN_COMPLETED, clFileSystemEvent);
 clFileSystemWorkspace::clFileSystemWorkspace(bool dummy)
     : m_dummy(dummy)
-    , m_fileExtensions("*.cpp;*.c;*.txt;*.json;*.hpp;*.cc;*.cxx;*.xml;*.h")
 {
     SetWorkspaceType("File System Workspace");
     if(!dummy) {
@@ -37,6 +36,7 @@ clFileSystemWorkspace::clFileSystemWorkspace(bool dummy)
         EventNotifier::Get()->Bind(wxEVT_FS_SCAN_COMPLETED, &clFileSystemWorkspace::OnScanCompleted, this);
         EventNotifier::Get()->Bind(wxEVT_CMD_RETAG_WORKSPACE, &clFileSystemWorkspace::OnParseWorkspace, this);
         EventNotifier::Get()->Bind(wxEVT_CMD_RETAG_WORKSPACE_FULL, &clFileSystemWorkspace::OnParseWorkspace, this);
+        EventNotifier::Get()->Bind(wxEVT_SAVE_SESSION_NEEDED, &clFileSystemWorkspace::OnSaveSession, this);
         Bind(wxEVT_PARSE_THREAD_SCAN_INCLUDES_DONE, &clFileSystemWorkspace::OnParseThreadScanIncludeCompleted, this);
 
         // Build events
@@ -53,6 +53,7 @@ clFileSystemWorkspace::~clFileSystemWorkspace()
         EventNotifier::Get()->Unbind(wxEVT_CMD_OPEN_WORKSPACE, &clFileSystemWorkspace::OnOpenWorkspace, this);
         EventNotifier::Get()->Unbind(wxEVT_ALL_EDITORS_CLOSED, &clFileSystemWorkspace::OnAllEditorsClosed, this);
         EventNotifier::Get()->Unbind(wxEVT_FS_SCAN_COMPLETED, &clFileSystemWorkspace::OnScanCompleted, this);
+        EventNotifier::Get()->Unbind(wxEVT_SAVE_SESSION_NEEDED, &clFileSystemWorkspace::OnSaveSession, this);
 
         // parsing event
         EventNotifier::Get()->Unbind(wxEVT_CMD_RETAG_WORKSPACE, &clFileSystemWorkspace::OnParseWorkspace, this);
@@ -70,7 +71,12 @@ wxString clFileSystemWorkspace::GetActiveProjectName() const { return ""; }
 
 wxFileName clFileSystemWorkspace::GetFileName() const { return m_filename; }
 
-wxString clFileSystemWorkspace::GetFilesMask() const { return m_fileExtensions; }
+wxString clFileSystemWorkspace::GetFilesMask() const
+{
+    clFileSystemWorkspaceConfig::Ptr_t conf = m_settings.GetSelectedConfig();
+    if(conf) { return conf->GetFileExtensions(); }
+    return wxEmptyString;
+}
 
 wxFileName clFileSystemWorkspace::GetProjectFileName(const wxString& projectName) const
 {
@@ -146,7 +152,7 @@ void clFileSystemWorkspace::OnOpenWorkspace(clCommandEvent& event)
     wxFileName workspaceFile(event.GetFileName());
 
     // Test that this is our workspace
-    if(Load(workspaceFile)) {
+    if((workspaceFile.GetFullName() == WSP_FILE_NAME) && Load(workspaceFile)) {
         event.Skip(false);
         DoOpen();
 
@@ -168,61 +174,21 @@ bool clFileSystemWorkspace::Load(const wxFileName& file)
 {
     if(m_isLoaded) { return true; }
     m_filename = file;
-    JSON root(m_filename);
-    if(!root.isOk()) { return false; }
-    JSONItem item = root.toElement();
-    wxString wt = item.namedObject("workspace_type").toString();
-    if(wt != GetWorkspaceType()) { return false; }
-    m_flags = item.namedObject("flags").toSize_t(m_flags);
-    m_compileFlags = item.namedObject("compile_flags").toArrayString(m_compileFlags);
-    m_fileExtensions = item.namedObject("file_extensions").toString(m_fileExtensions);
-    JSONItem arrTargets = item.namedObject("targets");
-    int nCount = arrTargets.arraySize();
-    for(int i = 0; i < nCount; ++i) {
-        JSONItem p = arrTargets.arrayItem(i);
-        if(p.arraySize() == 2) {
-            wxString targetName = p.arrayItem(0).toString();
-            wxString command = p.arrayItem(1).toString();
-            m_buildTargets.insert({ targetName, command });
-        }
-    }
-    // Make sure we have the default build target (Build, Clean)
-    if(m_buildTargets.count("build") == 0) { m_buildTargets.insert({ "build", "" }); }
-    if(m_buildTargets.count("clean") == 0) { m_buildTargets.insert({ "clean", "" }); }
-    return true;
+    return m_settings.Load(m_filename);
 }
 
-void clFileSystemWorkspace::Save()
+void clFileSystemWorkspace::Save(bool parse)
 {
     if(!m_filename.IsOk()) { return; }
+    m_settings.Save(m_filename);
 
-    JSON root(cJSON_Object);
-    JSONItem item = root.toElement();
-    item.addProperty("workspace_type", GetWorkspaceType());
-    item.addProperty("flags", m_flags);
-    item.addProperty("compile_flags", m_compileFlags);
-    item.addProperty("file_extensions", m_fileExtensions);
-    JSONItem arrTargets = JSONItem::createArray("targets");
-    item.append(arrTargets);
-
-    for(const auto& vt : m_buildTargets) {
-        JSONItem target = JSONItem::createArray();
-        target.arrayAppend(vt.first);
-        target.arrayAppend(vt.second);
-        arrTargets.arrayAppend(target);
-    }
-    root.save(GetFileName());
-    if(m_fileScanNeeded) {
-        // trigger a file scan
-        CacheFiles();
-        // reset the flag
-        m_fileScanNeeded = false;
-    }
+    // trigger a file scan
+    if(parse) { CacheFiles(); }
 }
 
 void clFileSystemWorkspace::RestoreSession()
 {
-    // Restore any session
+    if(IsOpen()) { clGetManager()->LoadWorkspaceSession(m_filename); }
 }
 
 void clFileSystemWorkspace::DoOpen()
@@ -252,8 +218,8 @@ void clFileSystemWorkspace::DoOpen()
     TagsManagerST::Get()->CloseDatabase();
     TagsManagerST::Get()->OpenDatabase(fnFolder.GetFullPath());
 
-    // Update the parser search paths (the default compiler paths)
-    SetCompileFlags(CompileFlagsAsString(m_compileFlags));
+    // Update the parser paths with the active configuration
+    UpdateParserPaths();
 
     // Cache the source files from the workspace directories
     CacheFiles();
@@ -271,8 +237,7 @@ void clFileSystemWorkspace::DoClose()
     clGetManager()->StoreWorkspaceSession(m_filename);
 
     // avoid any file re-cache, we are closing
-    m_fileScanNeeded = false;
-    Save();
+    Save(false);
     DoClear();
 
     // Clear the UI
@@ -292,6 +257,9 @@ void clFileSystemWorkspace::DoClose()
     eventClose.SetEventObject(EventNotifier::Get()->TopFrame());
     EventNotifier::Get()->TopFrame()->GetEventHandler()->ProcessEvent(eventClose);
 
+    // Free the database
+    TagsManagerST::Get()->CloseDatabase();
+
     m_isLoaded = false;
     m_showWelcomePage = true;
 }
@@ -299,11 +267,7 @@ void clFileSystemWorkspace::DoClose()
 void clFileSystemWorkspace::DoClear()
 {
     m_filename.Clear();
-    m_buildTargets.clear();
-    m_flags = 0;
-    m_compileFlags.clear();
-    m_fileExtensions.clear();
-    m_fileScanNeeded = false;
+    m_settings.Clear();
 }
 
 void clFileSystemWorkspace::OnAllEditorsClosed(wxCommandEvent& event)
@@ -340,7 +304,7 @@ void clFileSystemWorkspace::New(const wxString& folder)
     if(!fn.FileExists()) {
         // Creates an empty workspace file
         m_filename = fn;
-        Save();
+        Save(false);
     }
 
     // and load it
@@ -376,6 +340,8 @@ void clFileSystemWorkspace::Parse(bool fullParse)
     // in the case of re-tagging the entire workspace and full re-tagging is enabled
     // it is faster to drop the tables instead of deleting
     if(fullParse) { TagsManagerST::Get()->GetDatabase()->RecreateDatabase(); }
+
+    UpdateParserPaths();
 
     // Create a parsing request
     ParseRequest* parsingRequest = new ParseRequest(EventNotifier::Get()->TopFrame());
@@ -419,42 +385,18 @@ void clFileSystemWorkspace::OnParseThreadScanIncludeCompleted(wxCommandEvent& ev
     wxDELETE(fileSet);
 }
 
-void clFileSystemWorkspace::SetCompileFlags(const wxString& compile_flags)
+void clFileSystemWorkspace::UpdateParserPaths()
 {
-    m_compileFlags = ::wxStringTokenize(compile_flags, "\r\n", wxTOKEN_STRTOK);
-
-    // Update the parser search paths (the default compiler paths)
-    wxArrayString searchPaths = TagsManagerST::Get()->GetCtagsOptions().GetParserSearchPaths();
-
-    // Read the user added paths
-    wxString strCompileFlags;
-    for(const wxString& l : m_compileFlags) {
-        if(!l.IsEmpty()) { strCompileFlags << l << " "; }
-    }
-    strCompileFlags.Trim();
-
-    CompilerCommandLineParser cclp(strCompileFlags, GetFileName().GetPath());
-    searchPaths.insert(searchPaths.end(), cclp.GetIncludes().begin(), cclp.GetIncludes().end());
-
-    wxArrayString uniquePaths;
-    std::unordered_set<wxString> S;
-    for(const wxString& path : searchPaths) {
-        wxFileName fn(path, "");
-        wxString fixedPath = fn.GetPath();
-        if(S.count(fixedPath) == 0) {
-            S.insert(fixedPath);
-            uniquePaths.Add(fixedPath);
-        }
-    }
-
+    clFileSystemWorkspaceConfig::Ptr_t conf = m_settings.GetSelectedConfig();
+    if(!conf) { return; }
     // Update the parser paths
+    wxArrayString uniquePaths = conf->GetSearchPaths(GetFileName());
     ParseThreadST::Get()->SetSearchPaths(uniquePaths, {});
-    clDEBUG() << "Parser paths are now set to:" << uniquePaths;
+    clDEBUG() << "[" << conf->GetName() << "]"
+              << "Parser paths are now set to:" << uniquePaths;
 }
 
 void clFileSystemWorkspace::Close() { DoClose(); }
-
-wxString clFileSystemWorkspace::GetCompileFlags() const { return CompileFlagsAsString(m_compileFlags); }
 
 wxString clFileSystemWorkspace::CompileFlagsAsString(const wxArrayString& arr) const
 {
@@ -467,7 +409,9 @@ wxString clFileSystemWorkspace::CompileFlagsAsString(const wxArrayString& arr) c
 
 wxString clFileSystemWorkspace::GetTargetCommand(const wxString& target) const
 {
-    if(m_buildTargets.count(target)) { return m_buildTargets.find(target)->second; }
+    if(!m_settings.GetSelectedConfig()) { return wxEmptyString; }
+    const wxStringMap_t& M = m_settings.GetSelectedConfig()->GetBuildTargets();
+    if(M.count(target)) { return M.find(target)->second; }
     return wxEmptyString;
 }
 
@@ -475,19 +419,25 @@ void clFileSystemWorkspace::OnBuildProcessTerminated(clProcessEvent& event)
 {
     wxDELETE(m_buildProcess);
     DoPrintBuildMessage(event.GetOutput());
-    
+
     clCommandEvent e(wxEVT_SHELL_COMMAND_PROCESS_ENDED);
     EventNotifier::Get()->AddPendingEvent(e);
 }
 
-void clFileSystemWorkspace::OnBuildProcessOutput(clProcessEvent& event)
-{
-    DoPrintBuildMessage(event.GetOutput());
-}
+void clFileSystemWorkspace::OnBuildProcessOutput(clProcessEvent& event) { DoPrintBuildMessage(event.GetOutput()); }
 
 void clFileSystemWorkspace::DoPrintBuildMessage(const wxString& message)
 {
     clCommandEvent e(wxEVT_SHELL_COMMAND_ADDLINE);
     e.SetString(message);
     EventNotifier::Get()->AddPendingEvent(e);
+}
+
+void clFileSystemWorkspace::OnSaveSession(clCommandEvent& event)
+{
+    event.Skip();
+    if(IsOpen()) {
+        event.Skip(false);
+        clGetManager()->StoreWorkspaceSession(m_filename);
+    }
 }
