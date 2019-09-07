@@ -21,21 +21,29 @@ class WXDLLIMPEXP_SDK clFileSystemWorkspace : public IWorkspace
     bool m_showWelcomePage = false;
     bool m_dummy = true;
     IProcess* m_buildProcess = nullptr;
+    IProcess* m_execProcess = nullptr;
     clFileSystemWorkspaceSettings m_settings;
     clFileSystemWorkspaceView* m_view = nullptr;
+    bool m_initialized = false;
+    std::unordered_map<int, wxString> m_buildTargetMenuIdToName;
 
 protected:
     void CacheFiles();
     wxString CompileFlagsAsString(const wxArrayString& arr) const;
     wxString GetTargetCommand(const wxString& target) const;
     void DoPrintBuildMessage(const wxString& message);
+    clEnvList_t GetEnvList();
 
     //===--------------------------
     // Event handlers
     //===--------------------------
     void OnBuildStarting(clBuildEvent& event);
     void OnBuildEnded(clBuildEvent& event);
-
+    void OnIsBuildInProgress(clBuildEvent& event);
+    void OnStopBuild(clBuildEvent& event);
+    void OnExecute(clExecuteEvent& event);
+    void OnStopExecute(clExecuteEvent& event);
+    void OnIsProgramRunning(clExecuteEvent& event);
     void OnOpenWorkspace(clCommandEvent& event);
     void OnCloseWorkspace(clCommandEvent& event);
     void OnAllEditorsClosed(wxCommandEvent& event);
@@ -45,6 +53,10 @@ protected:
     void OnBuildProcessTerminated(clProcessEvent& event);
     void OnBuildProcessOutput(clProcessEvent& event);
     void OnSaveSession(clCommandEvent& event);
+    void OnQuickDebugDlgShowing(clDebugEvent& event);
+    void OnQuickDebugDlgDismissed(clDebugEvent& event);
+    void OnCustomTargetMenu(clContextMenuEvent& event);
+    void OnMenuCustomTarget(wxCommandEvent& event);
 
 protected:
     bool Load(const wxFileName& file);
@@ -52,6 +64,8 @@ protected:
     void DoClose();
     void DoClear();
     void RestoreSession();
+    void DoBuild(const wxString& target);
+    clFileSystemWorkspaceConfig::Ptr_t GetConfig();
 
 public:
     ///===--------------------------
@@ -103,12 +117,21 @@ public:
      * @brief is this workspace opened?
      */
     bool IsOpen() const { return m_isLoaded; }
-    
+
     void UpdateParserPaths();
     const std::vector<wxFileName>& GetFiles() const { return m_files; }
-    
+
+    const wxString& GetName() const { return m_settings.GetName(); }
+    void SetName(const wxString& name) { m_settings.SetName(name); }
+
     const clFileSystemWorkspaceSettings& GetSettings() const { return m_settings; }
     clFileSystemWorkspaceSettings& GetSettings() { return m_settings; }
+
+    /**
+     * @brief initialise the workspace (Create GUI etc)
+     * This function does nothing if the workspace was already initialised
+     */
+    void Initialise();
 };
 
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_SDK, wxEVT_FS_SCAN_COMPLETED, clFileSystemEvent);

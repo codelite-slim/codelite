@@ -1328,7 +1328,7 @@ void clMainFrame::CreateToolBar(int toolSize)
     }
 
     m_toolbar = new clToolBar(this, wxID_ANY);
-    m_toolbar->SetGroupSpacing(clConfig::Get().Read(kConfigToolbarGroupSpacing, 20));
+    m_toolbar->SetGroupSpacing(clConfig::Get().Read(kConfigToolbarGroupSpacing, 50));
     m_toolbar->SetMiniToolBar(false); // We want main toolbar
     m_toolbar->EnableCustomisation(true);
     BitmapLoader& bmpLoader = *(PluginManager::Get()->GetStdIcons());
@@ -2664,7 +2664,7 @@ void clMainFrame::OnQuickOutline(wxCommandEvent& event)
     if(EventNotifier::Get()->ProcessEvent(evt)) return;
 
     wxUnusedVar(event);
-    if(!ManagerST::Get()->IsWorkspaceOpen() && !clFileSystemWorkspace::Get().IsOpen()) return;
+    if(!::clIsCxxWorkspaceOpened()) { return; }
 
     QuickOutlineDlg dlg(::wxGetTopLevelParent(activeEditor), activeEditor->GetFileName().GetFullPath(), wxID_ANY,
                         wxT(""), wxDefaultPosition, wxSize(400, 400), wxDEFAULT_DIALOG_STYLE);
@@ -3181,7 +3181,7 @@ void clMainFrame::CompleteInitialization()
     clWorkspaceManager::Get().RegisterWorkspace(new clFileSystemWorkspace(true));
 
     // Create a new file system workspace instance
-    clFileSystemWorkspace::Get();
+    clFileSystemWorkspace::Get().Initialise();
 
     // Populate the list of core toolbars before we start loading
     // the plugins
@@ -4993,7 +4993,14 @@ void clMainFrame::OnShowBuildMenu(wxCommandEvent& e)
     clToolBar* toolbar = dynamic_cast<clToolBar*>(e.GetEventObject());
     CHECK_PTR_RET(toolbar);
     wxMenu menu;
-    DoCreateBuildDropDownMenu(&menu);
+
+    // let the plugins build a different menu
+    clContextMenuEvent evt(wxEVT_BUILD_CUSTOM_TARGETS_MENU_SHOWING);
+    evt.SetEventObject(toolbar);
+    evt.SetMenu(&menu);
+    if(!EventNotifier::Get()->ProcessEvent(evt)) { DoCreateBuildDropDownMenu(&menu); }
+
+    // show the menu
     toolbar->ShowMenuForButton(XRCID("build_active_project"), &menu);
 }
 
@@ -5169,7 +5176,7 @@ void clMainFrame::OnSettingsChanged(wxCommandEvent& e)
     ShowOrHideCaptions();
 
     // As the toolbar is showing, refresh in case the group spacing was changed
-    m_toolbar->SetGroupSpacing(clConfig::Get().Read(kConfigToolbarGroupSpacing, 30));
+    m_toolbar->SetGroupSpacing(clConfig::Get().Read(kConfigToolbarGroupSpacing, 50));
     m_toolbar->Realize();
 
     clEditor::Vec_t editors;

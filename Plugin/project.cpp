@@ -137,8 +137,10 @@ bool Project::Load(const wxString& path)
     bool saveNeeded = false;
     if(GetVersionNumber() < CURRENT_WORKSPACE_VERSION) {
         saveNeeded = true;
+#if 0
         // upgrade the build configurations to support the new Default build system
         UpgradeBuildSystem();
+#endif
     }
 
     // Make sure that the project version matches the latest version
@@ -2192,18 +2194,19 @@ long Project::GetVersionNumber() const
 
 void Project::UpgradeBuildSystem()
 {
+#if 0
     ProjectSettingsPtr settings = GetSettings();
     if(!settings) { return; }
-
+    
     ProjectSettingsCookie c;
     BuildConfigPtr bldConf = settings->GetFirstBuildConfiguration(c);
     while(bldConf) {
         BuilderPtr builder = bldConf->GetBuilder();
-        if(builder->GetName() == "Default") {
+        if(builder->GetName() == "CodeLite Make Generator") {
             // requires upgrade
             // 1. Clear the intermediate folder value
             bldConf->SetIntermediateDirectory("");
-
+    
             // 2. Update the output file name.
             // Since the paths are not hardcoded, we just need the file name ommit any other
             // path
@@ -2212,7 +2215,7 @@ void Project::UpgradeBuildSystem()
             while(outputFileName.Replace("//", "/")) {}
             outputFileName = outputFileName.AfterLast('/');
             bldConf->SetOutputFileName(outputFileName);
-
+    
             if(bldConf->GetProjectType() == PROJECT_TYPE_EXECUTABLE) {
                 // 3. Set the executable to run/debug
                 wxString command;
@@ -2222,4 +2225,5 @@ void Project::UpgradeBuildSystem()
         }
         bldConf = settings->GetNextBuildConfiguration(c);
     }
+#endif
 }

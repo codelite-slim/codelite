@@ -18,8 +18,24 @@
 #include <wx/tokenzr.h>
 #include "shell_command.h"
 #include "processreaderthread.h"
+#include "clFilesCollector.h"
+#include <wx/msgdlg.h>
+#include "environmentconfig.h"
+#include "macromanager.h"
+#include "fileutils.h"
+#include <wx/xrc/xmlres.h>
 
-#define WSP_FILE_NAME "CodeLiteFS.workspace"
+#define CHECK_ACTIVE_CONFIG() \
+    if(!GetSettings().GetSelectedConfig()) { return; }
+
+#define CHECK_EVENT(e)     \
+    {                      \
+        if(!IsOpen()) {    \
+            e.Skip();      \
+            return;        \
+        }                  \
+        event.Skip(false); \
+    }
 
 wxDEFINE_EVENT(wxEVT_FS_SCAN_COMPLETED, clFileSystemEvent);
 clFileSystemWorkspace::clFileSystemWorkspace(bool dummy)
@@ -27,9 +43,6 @@ clFileSystemWorkspace::clFileSystemWorkspace(bool dummy)
 {
     SetWorkspaceType("File System Workspace");
     if(!dummy) {
-        m_view = new clFileSystemWorkspaceView(clGetManager()->GetWorkspaceView()->GetBook(), GetWorkspaceType());
-        clGetManager()->GetWorkspaceView()->AddPage(m_view, GetWorkspaceType());
-
         EventNotifier::Get()->Bind(wxEVT_CMD_CLOSE_WORKSPACE, &clFileSystemWorkspace::OnCloseWorkspace, this);
         EventNotifier::Get()->Bind(wxEVT_CMD_OPEN_WORKSPACE, &clFileSystemWorkspace::OnOpenWorkspace, this);
         EventNotifier::Get()->Bind(wxEVT_ALL_EDITORS_CLOSED, &clFileSystemWorkspace::OnAllEditorsClosed, this);
@@ -41,8 +54,21 @@ clFileSystemWorkspace::clFileSystemWorkspace(bool dummy)
 
         // Build events
         EventNotifier::Get()->Bind(wxEVT_BUILD_STARTING, &clFileSystemWorkspace::OnBuildStarting, this);
+        EventNotifier::Get()->Bind(wxEVT_STOP_BUILD, &clFileSystemWorkspace::OnStopBuild, this);
+        EventNotifier::Get()->Bind(wxEVT_GET_IS_BUILD_IN_PROGRESS, &clFileSystemWorkspace::OnIsBuildInProgress, this);
+        EventNotifier::Get()->Bind(wxEVT_BUILD_CUSTOM_TARGETS_MENU_SHOWING, &clFileSystemWorkspace::OnCustomTargetMenu,
+                                   this);
+
         Bind(wxEVT_ASYNC_PROCESS_TERMINATED, &clFileSystemWorkspace::OnBuildProcessTerminated, this);
         Bind(wxEVT_ASYNC_PROCESS_OUTPUT, &clFileSystemWorkspace::OnBuildProcessOutput, this);
+        // Exec events
+        EventNotifier::Get()->Bind(wxEVT_CMD_EXECUTE_ACTIVE_PROJECT, &clFileSystemWorkspace::OnExecute, this);
+        EventNotifier::Get()->Bind(wxEVT_CMD_IS_PROGRAM_RUNNING, &clFileSystemWorkspace::OnIsProgramRunning, this);
+        EventNotifier::Get()->Bind(wxEVT_CMD_STOP_EXECUTED_PROGRAM, &clFileSystemWorkspace::OnStopExecute, this);
+        // Debug events
+        EventNotifier::Get()->Bind(wxEVT_QUICK_DEBUG_DLG_SHOWING, &clFileSystemWorkspace::OnQuickDebugDlgShowing, this);
+        EventNotifier::Get()->Bind(wxEVT_QUICK_DEBUG_DLG_DISMISSED_OK, &clFileSystemWorkspace::OnQuickDebugDlgDismissed,
+                                   this);
     }
 }
 
@@ -62,8 +88,24 @@ clFileSystemWorkspace::~clFileSystemWorkspace()
 
         // Build events
         EventNotifier::Get()->Unbind(wxEVT_BUILD_STARTING, &clFileSystemWorkspace::OnBuildStarting, this);
+        EventNotifier::Get()->Unbind(wxEVT_GET_IS_BUILD_IN_PROGRESS, &clFileSystemWorkspace::OnIsBuildInProgress, this);
+        EventNotifier::Get()->Unbind(wxEVT_STOP_BUILD, &clFileSystemWorkspace::OnStopBuild, this);
+        EventNotifier::Get()->Unbind(wxEVT_BUILD_CUSTOM_TARGETS_MENU_SHOWING,
+                                     &clFileSystemWorkspace::OnCustomTargetMenu, this);
+
         Unbind(wxEVT_ASYNC_PROCESS_TERMINATED, &clFileSystemWorkspace::OnBuildProcessTerminated, this);
         Unbind(wxEVT_ASYNC_PROCESS_OUTPUT, &clFileSystemWorkspace::OnBuildProcessOutput, this);
+
+        // Exec events
+        EventNotifier::Get()->Unbind(wxEVT_CMD_EXECUTE_ACTIVE_PROJECT, &clFileSystemWorkspace::OnExecute, this);
+        EventNotifier::Get()->Unbind(wxEVT_CMD_IS_PROGRAM_RUNNING, &clFileSystemWorkspace::OnIsProgramRunning, this);
+        EventNotifier::Get()->Unbind(wxEVT_CMD_STOP_EXECUTED_PROGRAM, &clFileSystemWorkspace::OnStopExecute, this);
+
+        // Debug events
+        EventNotifier::Get()->Unbind(wxEVT_QUICK_DEBUG_DLG_SHOWING, &clFileSystemWorkspace::OnQuickDebugDlgShowing,
+                                     this);
+        EventNotifier::Get()->Unbind(wxEVT_QUICK_DEBUG_DLG_DISMISSED_OK,
+                                     &clFileSystemWorkspace::OnQuickDebugDlgDismissed, this);
     }
 }
 
@@ -131,16 +173,7 @@ void clFileSystemWorkspace::OnBuildStarting(clBuildEvent& event)
     event.Skip();
     if(IsOpen()) {
         event.Skip(false);
-        if(m_buildProcess) { return; }
-        m_buildProcess = ::CreateAsyncProcess(this, GetTargetCommand(event.GetKind()), IProcessCreateDefault,
-                                              GetFileName().GetPath());
-        if(!m_buildProcess) {
-            clCommandEvent e(wxEVT_SHELL_COMMAND_PROCESS_ENDED);
-            EventNotifier::Get()->AddPendingEvent(e);
-        } else {
-            clCommandEvent e(wxEVT_SHELL_COMMAND_STARTED);
-            EventNotifier::Get()->AddPendingEvent(e);
-        }
+        DoBuild(event.GetKind());
     }
 }
 
@@ -152,7 +185,7 @@ void clFileSystemWorkspace::OnOpenWorkspace(clCommandEvent& event)
     wxFileName workspaceFile(event.GetFileName());
 
     // Test that this is our workspace
-    if((workspaceFile.GetFullName() == WSP_FILE_NAME) && Load(workspaceFile)) {
+    if(m_settings.IsOk(workspaceFile) && Load(workspaceFile)) {
         event.Skip(false);
         DoOpen();
 
@@ -174,7 +207,9 @@ bool clFileSystemWorkspace::Load(const wxFileName& file)
 {
     if(m_isLoaded) { return true; }
     m_filename = file;
-    return m_settings.Load(m_filename);
+    bool loadOk = m_settings.Load(m_filename);
+    if(loadOk && m_settings.GetName().empty()) { m_settings.SetName(m_filename.GetName()); }
+    return loadOk;
 }
 
 void clFileSystemWorkspace::Save(bool parse)
@@ -194,7 +229,7 @@ void clFileSystemWorkspace::RestoreSession()
 void clFileSystemWorkspace::DoOpen()
 {
     // Create the symbols db file
-    wxFileName fnFolder(GetFileName().GetPath(), WSP_FILE_NAME);
+    wxFileName fnFolder(GetFileName());
     fnFolder.SetExt("db");
     fnFolder.AppendDir(".codelite");
     fnFolder.Mkdir(wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
@@ -262,6 +297,9 @@ void clFileSystemWorkspace::DoClose()
 
     m_isLoaded = false;
     m_showWelcomePage = true;
+
+    wxDELETE(m_execProcess);
+    wxDELETE(m_buildProcess);
 }
 
 void clFileSystemWorkspace::DoClear()
@@ -291,8 +329,21 @@ clFileSystemWorkspace& clFileSystemWorkspace::Get()
 
 void clFileSystemWorkspace::New(const wxString& folder)
 {
-    // Create an empty workspace
-    wxFileName fn(folder, WSP_FILE_NAME);
+    wxFileName fn(folder, "");
+    if(fn.GetDirCount() == 0) {
+        ::wxMessageBox(_("Unable to create a workspace on the root folder"), "CodeLite", wxICON_ERROR | wxCENTER);
+        return;
+    }
+    // Check to see if any workspace already exists in this folder
+    clFilesScanner fs;
+    clFilesScanner::EntryData::Vec_t results;
+    fs.ScanNoRecurse(folder, results, "*.workspace");
+    for(const auto& f : results) {
+        if(clFileSystemWorkspaceSettings::IsOk(f.fullpath)) {
+            fn = f.fullpath;
+            break;
+        }
+    }
 
     // If an workspace is opened and it is the same one as this, dont do nothing
     if(m_isLoaded && (GetFileName() == fn)) { return; }
@@ -300,15 +351,25 @@ void clFileSystemWorkspace::New(const wxString& folder)
     // Call close here, it does nothing if a workspace is not opened
     DoClose();
     DoClear();
-
-    if(!fn.FileExists()) {
-        // Creates an empty workspace file
-        m_filename = fn;
-        Save(false);
+    if(fn.GetFullName().IsEmpty()) {
+        wxString name = ::clGetTextFromUser(_("Workspace Name"), _("Name"), fn.GetDirs().Last());
+        if(name.IsEmpty()) { return; }
+        fn.SetName(name);
     }
 
+    fn.SetExt("workspace");
+    SetName(fn.GetName());
+
+    // Creates an empty workspace file
+    m_filename = fn;
+    if(!fn.FileExists()) { Save(false); }
+
     // and load it
-    if(Load(m_filename)) { DoOpen(); }
+    if(Load(m_filename)) {
+        DoOpen();
+    } else {
+        m_filename.Clear();
+    }
 }
 
 void clFileSystemWorkspace::OnScanCompleted(clFileSystemEvent& event)
@@ -387,12 +448,17 @@ void clFileSystemWorkspace::OnParseThreadScanIncludeCompleted(wxCommandEvent& ev
 
 void clFileSystemWorkspace::UpdateParserPaths()
 {
-    clFileSystemWorkspaceConfig::Ptr_t conf = m_settings.GetSelectedConfig();
-    if(!conf) { return; }
+    if(!GetConfig()) { return; }
+
     // Update the parser paths
-    wxArrayString uniquePaths = conf->GetSearchPaths(GetFileName());
+    wxArrayString uniquePaths = GetConfig()->GetSearchPaths(GetFileName());
+
+    // Expand any macros
+    for(wxString& path : uniquePaths) {
+        path = MacroManager::Instance()->Expand(path, nullptr, "", "");
+    }
     ParseThreadST::Get()->SetSearchPaths(uniquePaths, {});
-    clDEBUG() << "[" << conf->GetName() << "]"
+    clDEBUG() << "[" << GetConfig()->GetName() << "]"
               << "Parser paths are now set to:" << uniquePaths;
 }
 
@@ -411,20 +477,37 @@ wxString clFileSystemWorkspace::GetTargetCommand(const wxString& target) const
 {
     if(!m_settings.GetSelectedConfig()) { return wxEmptyString; }
     const wxStringMap_t& M = m_settings.GetSelectedConfig()->GetBuildTargets();
-    if(M.count(target)) { return M.find(target)->second; }
+    if(M.count(target)) {
+        wxString cmd = M.find(target)->second;
+        ::WrapInShell(cmd);
+        return cmd;
+    }
     return wxEmptyString;
 }
 
 void clFileSystemWorkspace::OnBuildProcessTerminated(clProcessEvent& event)
 {
-    wxDELETE(m_buildProcess);
-    DoPrintBuildMessage(event.GetOutput());
+    if(event.GetProcess() == m_buildProcess) {
+        wxDELETE(m_buildProcess);
+        DoPrintBuildMessage(event.GetOutput());
 
-    clCommandEvent e(wxEVT_SHELL_COMMAND_PROCESS_ENDED);
-    EventNotifier::Get()->AddPendingEvent(e);
+        clCommandEvent e(wxEVT_SHELL_COMMAND_PROCESS_ENDED);
+        EventNotifier::Get()->AddPendingEvent(e);
+
+    } else {
+        wxDELETE(m_execProcess);
+    }
 }
 
-void clFileSystemWorkspace::OnBuildProcessOutput(clProcessEvent& event) { DoPrintBuildMessage(event.GetOutput()); }
+void clFileSystemWorkspace::OnBuildProcessOutput(clProcessEvent& event)
+{
+    if(event.GetProcess() == m_buildProcess) {
+        DoPrintBuildMessage(event.GetOutput());
+
+    } else if(event.GetProcess() == m_execProcess) {
+        clGetManager()->AppendOutputTabText(kOutputTab_Output, event.GetOutput());
+    }
+}
 
 void clFileSystemWorkspace::DoPrintBuildMessage(const wxString& message)
 {
@@ -439,5 +522,164 @@ void clFileSystemWorkspace::OnSaveSession(clCommandEvent& event)
     if(IsOpen()) {
         event.Skip(false);
         clGetManager()->StoreWorkspaceSession(m_filename);
+    }
+}
+
+void clFileSystemWorkspace::Initialise()
+{
+    if(m_initialized) { return; }
+    m_view = new clFileSystemWorkspaceView(clGetManager()->GetWorkspaceView()->GetBook(), GetWorkspaceType());
+    clGetManager()->GetWorkspaceView()->AddPage(m_view, GetWorkspaceType());
+}
+
+void clFileSystemWorkspace::OnExecute(clExecuteEvent& event)
+{
+    CHECK_EVENT(event);
+    CHECK_ACTIVE_CONFIG();
+
+    if(m_execProcess) { return; }
+
+    clFileSystemWorkspaceConfig::Ptr_t conf = GetConfig();
+    wxString exe = conf->GetExecutable();
+    wxString args = conf->GetArgs();
+
+    // Expand variables
+    exe = MacroManager::Instance()->Expand(exe, nullptr, wxEmptyString);
+    args = MacroManager::Instance()->Expand(args, nullptr, wxEmptyString);
+    ::WrapInShell(exe);
+
+    // Execute the executable
+    wxString command;
+    command << exe;
+    if(!args.empty()) { command << " " << args; }
+
+    clEnvList_t envList = GetEnvList();
+    m_execProcess = ::CreateAsyncProcess(this, command, IProcessCreateDefault | IProcessCreateWithHiddenConsole,
+                                         GetFileName().GetPath(), &envList);
+}
+
+clEnvList_t clFileSystemWorkspace::GetEnvList()
+{
+    clEnvList_t envList;
+    if(!GetConfig()) { return envList; }
+    wxString envstr;
+    EvnVarList env = EnvironmentConfig::Instance()->GetSettings();
+    EnvMap envMap = env.GetVariables(env.GetActiveSet(), false, "", "");
+
+    // Add the global variables
+    envstr += envMap.String();
+    envstr += "\n";
+    envstr += GetConfig()->GetEnvironment();
+
+    // Append the workspace environment
+    envstr = MacroManager::Instance()->Expand(envstr, nullptr, wxEmptyString);
+    envList = FileUtils::CreateEnvironment(envstr);
+    return envList;
+}
+
+void clFileSystemWorkspace::OnIsBuildInProgress(clBuildEvent& event)
+{
+    CHECK_EVENT(event);
+    CHECK_ACTIVE_CONFIG();
+    event.SetIsRunning(m_buildProcess != nullptr);
+}
+
+void clFileSystemWorkspace::OnIsProgramRunning(clExecuteEvent& event)
+{
+    CHECK_EVENT(event);
+    CHECK_ACTIVE_CONFIG();
+    event.SetAnswer(m_execProcess != nullptr);
+}
+
+void clFileSystemWorkspace::OnStopExecute(clExecuteEvent& event)
+{
+    CHECK_EVENT(event);
+    if(m_execProcess) { m_execProcess->Terminate(); }
+}
+
+void clFileSystemWorkspace::OnStopBuild(clBuildEvent& event)
+{
+    CHECK_EVENT(event);
+    if(m_buildProcess) { m_buildProcess->Terminate(); }
+}
+
+void clFileSystemWorkspace::OnQuickDebugDlgShowing(clDebugEvent& event)
+{
+    CHECK_EVENT(event);
+    CHECK_ACTIVE_CONFIG();
+    event.SetArguments(GetConfig()->GetArgs());
+    event.SetExecutableName(GetConfig()->GetExecutable());
+}
+
+void clFileSystemWorkspace::OnQuickDebugDlgDismissed(clDebugEvent& event)
+{
+    CHECK_EVENT(event);
+    CHECK_ACTIVE_CONFIG();
+    GetConfig()->SetExecutable(event.GetExecutableName());
+    GetConfig()->SetArgs(event.GetArguments());
+}
+
+clFileSystemWorkspaceConfig::Ptr_t clFileSystemWorkspace::GetConfig() { return GetSettings().GetSelectedConfig(); }
+
+void clFileSystemWorkspace::OnMenuCustomTarget(wxCommandEvent& event)
+{
+    if(m_buildTargetMenuIdToName.count(event.GetId()) == 0) { return; }
+    const wxString& target = m_buildTargetMenuIdToName.find(event.GetId())->second;
+    if(GetConfig()->GetBuildTargets().count(target) == 0) { return; }
+    DoBuild(target);
+    m_buildTargetMenuIdToName.clear();
+}
+
+void clFileSystemWorkspace::OnCustomTargetMenu(clContextMenuEvent& event)
+{
+    CHECK_EVENT(event);
+    CHECK_ACTIVE_CONFIG();
+    wxMenu* menu = event.GetMenu();
+    wxArrayString arrTargets;
+    const wxStringMap_t& targets = GetConfig()->GetBuildTargets();
+    // Copy the targets to std::map to get a sorted results
+    std::map<wxString, wxString> M;
+    M.insert(targets.begin(), targets.end());
+    m_buildTargetMenuIdToName.clear();
+
+    for(const auto& vt : M) {
+        const wxString& name = vt.first;
+        int menuId = wxXmlResource::GetXRCID(vt.first);
+        menu->Append(menuId, name, name, wxITEM_NORMAL);
+        menu->Bind(wxEVT_MENU, &clFileSystemWorkspace::OnMenuCustomTarget, this, menuId);
+        m_buildTargetMenuIdToName.insert({ menuId, name });
+    }
+}
+
+void clFileSystemWorkspace::DoBuild(const wxString& target)
+{
+    if(m_buildProcess) { return; }
+    if(!GetSettings().GetSelectedConfig()) {
+        ::wxMessageBox(_("You should have at least one workspace configuration.\n0 found\nOpen the project "
+                         "settings and add one"),
+                       "CodeLite", wxICON_WARNING | wxCENTER);
+        return;
+    }
+
+    wxString cmd = GetTargetCommand(target);
+    if(cmd.IsEmpty()) {
+        ::wxMessageBox(_("Dont know how to run '") + target + "'", "CodeLite", wxICON_WARNING | wxCENTER);
+        return;
+    }
+
+    // Replace all workspace macros from the command
+    cmd = MacroManager::Instance()->Expand(cmd, nullptr, wxEmptyString);
+
+    // Build the environment to use
+    clEnvList_t envList = GetEnvList();
+
+    // Start the process with the environemt
+    m_buildProcess = ::CreateAsyncProcess(this, cmd, IProcessCreateDefault, GetFileName().GetPath(), &envList);
+    if(!m_buildProcess) {
+        clCommandEvent e(wxEVT_SHELL_COMMAND_PROCESS_ENDED);
+        EventNotifier::Get()->AddPendingEvent(e);
+    } else {
+        clCommandEvent e(wxEVT_SHELL_COMMAND_STARTED);
+        EventNotifier::Get()->AddPendingEvent(e);
     }
 }
