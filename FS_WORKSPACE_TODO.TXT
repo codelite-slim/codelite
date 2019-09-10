@@ -1,2 +1,2 @@
-- Custom targets should be placed in the build button drop down menus
-- Support 'Workspace -> New Workspace' flow
+- Allow the user to save the 'Code Completion' page content into a compile_flags.txt file
+- Sort the build targets before saving them into the FS workspace file (otherwise, each commit will include that file)

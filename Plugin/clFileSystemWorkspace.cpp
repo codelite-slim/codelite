@@ -24,6 +24,7 @@
 #include "macromanager.h"
 #include "fileutils.h"
 #include <wx/xrc/xmlres.h>
+#include "NewFileSystemWorkspaceDialog.h"
 
 #define CHECK_ACTIVE_CONFIG() \
     if(!GetSettings().GetSelectedConfig()) { return; }
@@ -45,6 +46,7 @@ clFileSystemWorkspace::clFileSystemWorkspace(bool dummy)
     if(!dummy) {
         EventNotifier::Get()->Bind(wxEVT_CMD_CLOSE_WORKSPACE, &clFileSystemWorkspace::OnCloseWorkspace, this);
         EventNotifier::Get()->Bind(wxEVT_CMD_OPEN_WORKSPACE, &clFileSystemWorkspace::OnOpenWorkspace, this);
+        EventNotifier::Get()->Bind(wxEVT_CMD_CREATE_NEW_WORKSPACE, &clFileSystemWorkspace::OnNewWorkspace, this);
         EventNotifier::Get()->Bind(wxEVT_ALL_EDITORS_CLOSED, &clFileSystemWorkspace::OnAllEditorsClosed, this);
         EventNotifier::Get()->Bind(wxEVT_FS_SCAN_COMPLETED, &clFileSystemWorkspace::OnScanCompleted, this);
         EventNotifier::Get()->Bind(wxEVT_CMD_RETAG_WORKSPACE, &clFileSystemWorkspace::OnParseWorkspace, this);
@@ -77,6 +79,7 @@ clFileSystemWorkspace::~clFileSystemWorkspace()
     if(!m_dummy) {
         EventNotifier::Get()->Unbind(wxEVT_CMD_CLOSE_WORKSPACE, &clFileSystemWorkspace::OnCloseWorkspace, this);
         EventNotifier::Get()->Unbind(wxEVT_CMD_OPEN_WORKSPACE, &clFileSystemWorkspace::OnOpenWorkspace, this);
+        EventNotifier::Get()->Unbind(wxEVT_CMD_CREATE_NEW_WORKSPACE, &clFileSystemWorkspace::OnNewWorkspace, this);
         EventNotifier::Get()->Unbind(wxEVT_ALL_EDITORS_CLOSED, &clFileSystemWorkspace::OnAllEditorsClosed, this);
         EventNotifier::Get()->Unbind(wxEVT_FS_SCAN_COMPLETED, &clFileSystemWorkspace::OnScanCompleted, this);
         EventNotifier::Get()->Unbind(wxEVT_SAVE_SESSION_NEEDED, &clFileSystemWorkspace::OnSaveSession, this);
@@ -216,7 +219,7 @@ void clFileSystemWorkspace::Save(bool parse)
 {
     if(!m_filename.IsOk()) { return; }
     m_settings.Save(m_filename);
-
+    GetView()->UpdateConfigs(GetSettings().GetConfigs(), GetConfig() ? GetConfig()->GetName() : wxString());
     // trigger a file scan
     if(parse) { CacheFiles(); }
 }
@@ -246,6 +249,9 @@ void clFileSystemWorkspace::DoOpen()
     wxCommandEvent event(wxEVT_WORKSPACE_LOADED);
     event.SetString(GetFileName().GetFullPath());
     EventNotifier::Get()->AddPendingEvent(event);
+
+    // Update the build configurations button
+    GetView()->UpdateConfigs(GetSettings().GetConfigs(), GetConfig() ? GetConfig()->GetName() : wxString());
 
     // and finally, request codelite to keep this workspace in the recently opened workspace list
     clGetManager()->AddWorkspaceToRecentlyUsedList(m_filename);
@@ -300,6 +306,8 @@ void clFileSystemWorkspace::DoClose()
 
     wxDELETE(m_execProcess);
     wxDELETE(m_buildProcess);
+
+    GetView()->UpdateConfigs({}, wxString());
 }
 
 void clFileSystemWorkspace::DoClear()
@@ -327,50 +335,7 @@ clFileSystemWorkspace& clFileSystemWorkspace::Get()
     return wsp;
 }
 
-void clFileSystemWorkspace::New(const wxString& folder)
-{
-    wxFileName fn(folder, "");
-    if(fn.GetDirCount() == 0) {
-        ::wxMessageBox(_("Unable to create a workspace on the root folder"), "CodeLite", wxICON_ERROR | wxCENTER);
-        return;
-    }
-    // Check to see if any workspace already exists in this folder
-    clFilesScanner fs;
-    clFilesScanner::EntryData::Vec_t results;
-    fs.ScanNoRecurse(folder, results, "*.workspace");
-    for(const auto& f : results) {
-        if(clFileSystemWorkspaceSettings::IsOk(f.fullpath)) {
-            fn = f.fullpath;
-            break;
-        }
-    }
-
-    // If an workspace is opened and it is the same one as this, dont do nothing
-    if(m_isLoaded && (GetFileName() == fn)) { return; }
-
-    // Call close here, it does nothing if a workspace is not opened
-    DoClose();
-    DoClear();
-    if(fn.GetFullName().IsEmpty()) {
-        wxString name = ::clGetTextFromUser(_("Workspace Name"), _("Name"), fn.GetDirs().Last());
-        if(name.IsEmpty()) { return; }
-        fn.SetName(name);
-    }
-
-    fn.SetExt("workspace");
-    SetName(fn.GetName());
-
-    // Creates an empty workspace file
-    m_filename = fn;
-    if(!fn.FileExists()) { Save(false); }
-
-    // and load it
-    if(Load(m_filename)) {
-        DoOpen();
-    } else {
-        m_filename.Clear();
-    }
-}
+void clFileSystemWorkspace::New(const wxString& folder) { DoCreate("", folder, true); }
 
 void clFileSystemWorkspace::OnScanCompleted(clFileSystemEvent& event)
 {
@@ -681,5 +646,67 @@ void clFileSystemWorkspace::DoBuild(const wxString& target)
     } else {
         clCommandEvent e(wxEVT_SHELL_COMMAND_STARTED);
         EventNotifier::Get()->AddPendingEvent(e);
+    }
+}
+
+void clFileSystemWorkspace::OnNewWorkspace(clCommandEvent& event)
+{
+    event.Skip();
+    if(event.GetString() == GetWorkspaceType()) {
+        event.Skip(false);
+        // Prompt the user for folder and name
+        NewFileSystemWorkspaceDialog dlg(EventNotifier::Get()->TopFrame());
+        if(dlg.ShowModal() == wxID_OK) { DoCreate(dlg.GetWorkspaceName(), dlg.GetWorkspacePath(), false); }
+    }
+}
+
+void clFileSystemWorkspace::DoCreate(const wxString& name, const wxString& path, bool loadIfExists)
+{
+    wxFileName fn(path, "");
+    if(fn.GetDirCount() == 0) {
+        ::wxMessageBox(_("Unable to create a workspace on the root folder"), "CodeLite", wxICON_ERROR | wxCENTER);
+        return;
+    }
+
+    if(loadIfExists) {
+        // Check to see if any workspace already exists in this folder
+        clFilesScanner fs;
+        clFilesScanner::EntryData::Vec_t results;
+        fs.ScanNoRecurse(path, results, "*.workspace");
+        for(const auto& f : results) {
+            if(clFileSystemWorkspaceSettings::IsOk(f.fullpath)) {
+                fn = f.fullpath;
+                break;
+            }
+        }
+    }
+
+    // If an workspace is opened and it is the same one as this, dont do nothing
+    if(m_isLoaded && (GetFileName() == fn)) { return; }
+
+    // Call close here, it does nothing if a workspace is not opened
+    DoClose();
+    DoClear();
+
+    if(!name.IsEmpty()) {
+        fn.SetName(name);
+    } else if(fn.GetFullName().IsEmpty()) {
+        wxString name = ::clGetTextFromUser(_("Workspace Name"), _("Name"), fn.GetDirs().Last());
+        if(name.IsEmpty()) { return; }
+        fn.SetName(name);
+    }
+
+    fn.SetExt("workspace");
+    SetName(fn.GetName());
+
+    // Creates an empty workspace file
+    m_filename = fn;
+    if(!fn.FileExists()) { Save(false); }
+
+    // and load it
+    if(Load(m_filename)) {
+        DoOpen();
+    } else {
+        m_filename.Clear();
     }
 }
