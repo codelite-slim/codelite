@@ -11,6 +11,7 @@
 #include "macros.h"
 #include "asyncprocess.h"
 #include "clFileSystemWorkspaceConfig.hpp"
+#include "clRemoteBuilder.hpp"
 
 class clFileSystemWorkspaceView;
 class WXDLLIMPEXP_SDK clFileSystemWorkspace : public IWorkspace
@@ -26,9 +27,10 @@ class WXDLLIMPEXP_SDK clFileSystemWorkspace : public IWorkspace
     clFileSystemWorkspaceView* m_view = nullptr;
     bool m_initialized = false;
     std::unordered_map<int, wxString> m_buildTargetMenuIdToName;
+    clRemoteBuilder::Ptr_t m_remoteBuilder;
 
 protected:
-    void CacheFiles();
+    void CacheFiles(bool force = false);
     wxString CompileFlagsAsString(const wxArrayString& arr) const;
     wxString GetTargetCommand(const wxString& target) const;
     void DoPrintBuildMessage(const wxString& message);
@@ -59,6 +61,7 @@ protected:
     void OnCustomTargetMenu(clContextMenuEvent& event);
     void OnMenuCustomTarget(wxCommandEvent& event);
     void OnFileSaved(clCommandEvent& event);
+    void OnSourceControlPulled(clSourceControlEvent& event);
 
 protected:
     bool Load(const wxFileName& file);
@@ -68,7 +71,8 @@ protected:
     void DoCreate(const wxString& name, const wxString& path, bool loadIfExists);
     void RestoreSession();
     void DoBuild(const wxString& target);
-    clFileSystemWorkspaceConfig::Ptr_t GetConfig();
+    void TriggerQuickParse();
+    clFileSystemWorkspaceConfig::Ptr_t GetConfig() const;
 
 public:
     ///===--------------------------
@@ -135,6 +139,13 @@ public:
      * This function does nothing if the workspace was already initialised
      */
     void Initialise();
+    
+    /**
+     * @brief call this to update the workspace once a file system changes.
+     * this method will re-cache the files + parse the workspace
+     * Note that this method does NOT update the UI in anyways.
+     */
+    void FileSystemUpdated();
 };
 
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_SDK, wxEVT_FS_SCAN_COMPLETED, clFileSystemEvent);

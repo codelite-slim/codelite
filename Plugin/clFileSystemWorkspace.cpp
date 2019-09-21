@@ -56,6 +56,7 @@ clFileSystemWorkspace::clFileSystemWorkspace(bool dummy)
         EventNotifier::Get()->Bind(wxEVT_CMD_RETAG_WORKSPACE_FULL, &clFileSystemWorkspace::OnParseWorkspace, this);
         EventNotifier::Get()->Bind(wxEVT_SAVE_SESSION_NEEDED, &clFileSystemWorkspace::OnSaveSession, this);
         Bind(wxEVT_PARSE_THREAD_SCAN_INCLUDES_DONE, &clFileSystemWorkspace::OnParseThreadScanIncludeCompleted, this);
+        EventNotifier::Get()->Bind(wxEVT_SOURCE_CONTROL_PULLED, &clFileSystemWorkspace::OnSourceControlPulled, this);
 
         // Build events
         EventNotifier::Get()->Bind(wxEVT_BUILD_STARTING, &clFileSystemWorkspace::OnBuildStarting, this);
@@ -93,6 +94,7 @@ clFileSystemWorkspace::~clFileSystemWorkspace()
         EventNotifier::Get()->Unbind(wxEVT_CMD_RETAG_WORKSPACE, &clFileSystemWorkspace::OnParseWorkspace, this);
         EventNotifier::Get()->Unbind(wxEVT_CMD_RETAG_WORKSPACE_FULL, &clFileSystemWorkspace::OnParseWorkspace, this);
         Unbind(wxEVT_PARSE_THREAD_SCAN_INCLUDES_DONE, &clFileSystemWorkspace::OnParseThreadScanIncludeCompleted, this);
+        EventNotifier::Get()->Unbind(wxEVT_SOURCE_CONTROL_PULLED, &clFileSystemWorkspace::OnSourceControlPulled, this);
 
         // Build events
         EventNotifier::Get()->Unbind(wxEVT_BUILD_STARTING, &clFileSystemWorkspace::OnBuildStarting, this);
@@ -154,8 +156,11 @@ bool clFileSystemWorkspace::IsBuildSupported() const { return true; }
 
 bool clFileSystemWorkspace::IsProjectSupported() const { return false; }
 
-void clFileSystemWorkspace::CacheFiles()
+void clFileSystemWorkspace::CacheFiles(bool force)
 {
+    // should we force a rescan of the files?
+    if(force) { m_files.clear(); }
+    // sanity
     if(!m_files.empty()) { m_files.clear(); }
     std::thread thr(
         [=](const wxString& rootFolder) {
@@ -351,6 +356,7 @@ void clFileSystemWorkspace::New(const wxString& folder) { DoCreate("", folder, t
 
 void clFileSystemWorkspace::OnScanCompleted(clFileSystemEvent& event)
 {
+    clDEBUG() << "FSW: CacheFiles completed. Found" << event.GetPaths().size() << "files";
     m_files.clear();
     m_files.reserve(event.GetPaths().size());
     for(const wxString& filename : event.GetPaths()) {
@@ -470,11 +476,11 @@ wxString clFileSystemWorkspace::CompileFlagsAsString(const wxArrayString& arr) c
 
 wxString clFileSystemWorkspace::GetTargetCommand(const wxString& target) const
 {
-    if(!m_settings.GetSelectedConfig()) { return wxEmptyString; }
+    if(!GetConfig()) { return wxEmptyString; }
     const wxStringMap_t& M = m_settings.GetSelectedConfig()->GetBuildTargets();
     if(M.count(target)) {
         wxString cmd = M.find(target)->second;
-        ::WrapInShell(cmd);
+        if(!GetConfig()->IsRemoteEnabled()) { ::WrapInShell(cmd); }
         return cmd;
     }
     return wxEmptyString;
@@ -576,7 +582,7 @@ void clFileSystemWorkspace::OnIsBuildInProgress(clBuildEvent& event)
 {
     CHECK_EVENT(event);
     CHECK_ACTIVE_CONFIG();
-    event.SetIsRunning(m_buildProcess != nullptr);
+    event.SetIsRunning(m_buildProcess != nullptr || (m_remoteBuilder && m_remoteBuilder->IsRunning()));
 }
 
 void clFileSystemWorkspace::OnIsProgramRunning(clExecuteEvent& event)
@@ -595,26 +601,34 @@ void clFileSystemWorkspace::OnStopExecute(clExecuteEvent& event)
 void clFileSystemWorkspace::OnStopBuild(clBuildEvent& event)
 {
     CHECK_EVENT(event);
-    if(m_buildProcess) { m_buildProcess->Terminate(); }
+    if(m_buildProcess) {
+        m_buildProcess->Terminate();
+    } else if(m_remoteBuilder && m_remoteBuilder->IsRunning()) {
+        m_remoteBuilder->Stop();
+    }
 }
 
 void clFileSystemWorkspace::OnQuickDebugDlgShowing(clDebugEvent& event)
 {
     CHECK_EVENT(event);
     CHECK_ACTIVE_CONFIG();
-    event.SetArguments(GetConfig()->GetArgs());
-    event.SetExecutableName(GetConfig()->GetExecutable());
+    
+    wxString args = MacroManager::Instance()->Expand(GetConfig()->GetArgs(), NULL, "", "");
+    wxString exec = MacroManager::Instance()->Expand(GetConfig()->GetExecutable(), NULL, "", "");
+    event.SetArguments(args);
+    event.SetExecutableName(exec);
 }
 
 void clFileSystemWorkspace::OnQuickDebugDlgDismissed(clDebugEvent& event)
 {
     CHECK_EVENT(event);
     CHECK_ACTIVE_CONFIG();
-    GetConfig()->SetExecutable(event.GetExecutableName());
-    GetConfig()->SetArgs(event.GetArguments());
 }
 
-clFileSystemWorkspaceConfig::Ptr_t clFileSystemWorkspace::GetConfig() { return GetSettings().GetSelectedConfig(); }
+clFileSystemWorkspaceConfig::Ptr_t clFileSystemWorkspace::GetConfig() const
+{
+    return GetSettings().GetSelectedConfig();
+}
 
 void clFileSystemWorkspace::OnMenuCustomTarget(wxCommandEvent& event)
 {
@@ -648,8 +662,7 @@ void clFileSystemWorkspace::OnCustomTargetMenu(clContextMenuEvent& event)
 
 void clFileSystemWorkspace::DoBuild(const wxString& target)
 {
-    if(m_buildProcess) { return; }
-    if(!GetSettings().GetSelectedConfig()) {
+    if(!GetConfig()) {
         ::wxMessageBox(_("You should have at least one workspace configuration.\n0 found\nOpen the project "
                          "settings and add one"),
                        "CodeLite", wxICON_WARNING | wxCENTER);
@@ -662,20 +675,28 @@ void clFileSystemWorkspace::DoBuild(const wxString& target)
         return;
     }
 
-    // Replace all workspace macros from the command
-    cmd = MacroManager::Instance()->Expand(cmd, nullptr, wxEmptyString);
-
-    // Build the environment to use
-    clEnvList_t envList = GetEnvList();
-
-    // Start the process with the environemt
-    m_buildProcess = ::CreateAsyncProcess(this, cmd, IProcessCreateDefault, GetFileName().GetPath(), &envList);
-    if(!m_buildProcess) {
-        clCommandEvent e(wxEVT_SHELL_COMMAND_PROCESS_ENDED);
-        EventNotifier::Get()->AddPendingEvent(e);
+    if(GetConfig()->IsRemoteEnabled()) {
+        // Launch a remote build process
+        if(m_remoteBuilder && m_remoteBuilder->IsRunning()) { return; }
+        m_remoteBuilder.reset(new clRemoteBuilder());
+        m_remoteBuilder->Build(GetConfig()->GetRemoteAccount(), cmd, GetConfig()->GetRemoteFolder());
     } else {
-        clCommandEvent e(wxEVT_SHELL_COMMAND_STARTED);
-        EventNotifier::Get()->AddPendingEvent(e);
+        if(m_buildProcess) { return; }
+        // Replace all workspace macros from the command
+        cmd = MacroManager::Instance()->Expand(cmd, nullptr, wxEmptyString);
+
+        // Build the environment to use
+        clEnvList_t envList = GetEnvList();
+
+        // Start the process with the environemt
+        m_buildProcess = ::CreateAsyncProcess(this, cmd, IProcessCreateDefault, GetFileName().GetPath(), &envList);
+        if(!m_buildProcess) {
+            clCommandEvent e(wxEVT_SHELL_COMMAND_PROCESS_ENDED);
+            EventNotifier::Get()->AddPendingEvent(e);
+        } else {
+            clCommandEvent e(wxEVT_SHELL_COMMAND_STARTED);
+            EventNotifier::Get()->AddPendingEvent(e);
+        }
     }
 }
 
@@ -750,18 +771,17 @@ void clFileSystemWorkspace::OnFileSaved(clCommandEvent& event)
         const wxString& filename = event.GetFileName();
         const wxString& account = GetConfig()->GetRemoteAccount();
         const wxString& remotePath = GetConfig()->GetRemoteFolder();
-        
+
         wxString remoteFilePath;
-        
+
         // Make the local file path relative to the workspace location
         wxFileName fnLocalFile(event.GetFileName());
         fnLocalFile.MakeRelativeTo(GetFileName().GetPath());
-        
+
         remoteFilePath = fnLocalFile.GetFullPath(wxPATH_UNIX);
         remoteFilePath.Prepend(remotePath + "/");
         wxFileName fnRemoteFile(remoteFilePath);
-        
-        
+
         // Build the remote filename
         clSFTPEvent eventSave(wxEVT_SFTP_SAVE_FILE);
         eventSave.SetAccount(account);
@@ -770,3 +790,22 @@ void clFileSystemWorkspace::OnFileSaved(clCommandEvent& event)
         EventNotifier::Get()->QueueEvent(eventSave.Clone());
     }
 }
+
+void clFileSystemWorkspace::OnSourceControlPulled(clSourceControlEvent& event)
+{
+    event.Skip();
+    clDEBUG() << "Source control '" << event.GetSourceControlName() << "' pulled.";
+    clDEBUG() << "Refreshing tree + re-parsing";
+    GetView()->RefreshTree();
+
+    // Re-Cache the files and trigger a workspace parse
+    CacheFiles(true);
+}
+
+void clFileSystemWorkspace::TriggerQuickParse()
+{
+    wxCommandEvent eventParse(wxEVT_MENU, XRCID("retag_workspace"));
+    EventNotifier::Get()->TopFrame()->GetEventHandler()->QueueEvent(eventParse.Clone());
+}
+
+void clFileSystemWorkspace::FileSystemUpdated() { CacheFiles(true); }

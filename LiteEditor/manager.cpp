@@ -107,6 +107,8 @@
 #include "wxCodeCompletionBoxManager.h"
 #include "ServiceProviderManager.h"
 #include "NewProjectDialog.h"
+#include "clFileSystemWorkspace.hpp"
+#include "app.h"
 
 #ifndef __WXMSW__
 #include <sys/wait.h>
@@ -762,23 +764,50 @@ void Manager::GetWorkspaceFiles(wxArrayString& files)
     getFilesEevet.SetClientData(&files);
     if(EventNotifier::Get()->ProcessEvent(getFilesEevet)) { return; }
 
-    if(!IsWorkspaceOpen()) { return; }
+    if(clFileSystemWorkspace::Get().IsOpen()) {
+        const auto& V = clFileSystemWorkspace::Get().GetFiles();
+        if(V.empty()) { return; }
+        files.Alloc(V.size());
+        for(const auto& f : V) {
+            files.Add(f.GetFullPath());
+        }
+        return;
+    } else {
+        if(!IsWorkspaceOpen()) { return; }
 
-    wxArrayString projects;
-    GetProjectList(projects);
+        wxArrayString projects;
+        GetProjectList(projects);
 
-    for(size_t i = 0; i < projects.GetCount(); i++) {
-        GetProjectFiles(projects.Item(i), files);
+        for(size_t i = 0; i < projects.GetCount(); i++) {
+            GetProjectFiles(projects.Item(i), files);
+        }
     }
 }
 
 void Manager::GetWorkspaceFiles(std::vector<wxFileName>& files, bool absPath)
 {
-    wxArrayString projects;
-    GetProjectList(projects);
-    for(size_t i = 0; i < projects.GetCount(); i++) {
-        ProjectPtr p = GetProject(projects.Item(i));
-        p->GetFilesAsVectorOfFileName(files, absPath);
+    if(clFileSystemWorkspace::Get().IsOpen()) {
+        const auto& V = clFileSystemWorkspace::Get().GetFiles();
+        if(V.empty()) { return; }
+        files.reserve(V.size());
+        if(absPath) {
+            files.insert(files.end(), V.begin(), V.end());
+        } else {
+            const wxFileName& fnWorkspace = clFileSystemWorkspace::Get().GetFileName();
+            wxString path = fnWorkspace.GetPath();
+            for(const auto& f : V) {
+                wxFileName fn(f);
+                fn.MakeRelativeTo(path);
+                files.push_back(fn);
+            }
+        }
+    } else {
+        wxArrayString projects;
+        GetProjectList(projects);
+        for(size_t i = 0; i < projects.GetCount(); i++) {
+            ProjectPtr p = GetProject(projects.Item(i));
+            p->GetFilesAsVectorOfFileName(files, absPath);
+        }
     }
 }
 
@@ -3054,6 +3083,9 @@ void Manager::DbgRestoreWatches()
 void Manager::DoRestartCodeLite()
 {
     wxString restartCodeLiteCommand;
+    wxString workingDirectory;
+    CodeLiteApp* app = dynamic_cast<CodeLiteApp*>(wxTheApp);
+    
 #if defined(__WXGTK__) || defined(__WXMSW__)
     // The Shell is our friend
     restartCodeLiteCommand << clStandardPaths::Get().GetExecutablePath();
@@ -3064,12 +3096,8 @@ void Manager::DoRestartCodeLite()
         ::WrapWithQuotes(cmdArg);
         restartCodeLiteCommand << wxT(" ") << cmdArg;
     }
-    wxSetWorkingDirectory(GetOriginalCwd());
-
-    wxCommandEvent event(wxEVT_COMMAND_MENU_SELECTED, wxID_EXIT);
-    clMainFrame::Get()->GetEventHandler()->AddPendingEvent(event);
-
-    ::wxExecute(restartCodeLiteCommand, wxEXEC_ASYNC | wxEXEC_MAKE_GROUP_LEADER);
+    workingDirectory = GetOriginalCwd();
+    
 #else // OSX
 
     // on OSX, we use the open command
@@ -3080,11 +3108,12 @@ void Manager::DoRestartCodeLite()
     ::WrapWithQuotes(bundlePathStr);
     restartCodeLiteCommand << "sleep 2 && /usr/bin/open " << bundlePathStr;
     ::WrapInShell(restartCodeLiteCommand);
+#endif
+
     wxCommandEvent event(wxEVT_COMMAND_MENU_SELECTED, wxID_EXIT);
     clMainFrame::Get()->GetEventHandler()->AddPendingEvent(event);
-    clSYSTEM() << "Restarting CodeLite:" << restartCodeLiteCommand;
-    wxExecute(restartCodeLiteCommand, wxEXEC_ASYNC | wxEXEC_NOHIDE | wxEXEC_MAKE_GROUP_LEADER);
-#endif
+    app->SetRestartCodeLite(true);
+    app->SetRestartCommand(restartCodeLiteCommand, workingDirectory);
 }
 
 void Manager::SetCodeLiteLauncherPath(const wxString& path) { m_codeliteLauncher = path; }

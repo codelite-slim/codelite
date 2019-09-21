@@ -23,6 +23,7 @@ SSHRemoteProcess::SSHRemoteProcess(wxEvtHandler* owner, clSSH::Ptr_t ssh, clSSHC
     , m_owner(owner)
 {
     m_channel.reset(new clSSHChannel(ssh, type, this));
+    m_channel->Open(); // may throw
     Bind(wxEVT_SSH_CHANNEL_PTY, &SSHRemoteProcess::OnPty, this);
     Bind(wxEVT_SSH_CHANNEL_WRITE_ERROR, &SSHRemoteProcess::OnError, this);
     Bind(wxEVT_SSH_CHANNEL_READ_ERROR, &SSHRemoteProcess::OnError, this);
@@ -49,7 +50,12 @@ bool SSHRemoteProcess::Read(wxString& buff, wxString& buffErr)
     return false;
 }
 
-void SSHRemoteProcess::Terminate() { Detach(); }
+void SSHRemoteProcess::Terminate()
+{
+    Detach();
+    clProcessEvent e(wxEVT_ASYNC_PROCESS_TERMINATED);
+    GetOwner()->AddPendingEvent(e);
+}
 
 bool SSHRemoteProcess::Write(const std::string& buff) { return do_ssh_write(m_channel, buff); }
 
@@ -78,17 +84,10 @@ void SSHRemoteProcess::OnError(clCommandEvent& event)
     wxString msg = event.GetString(); // contains the error message
     clDEBUG() << "ssh error:" << msg;
     // Convert it to
-    clProcessEvent e(wxEVT_ASYNC_PROCESS_TERMINATED);
-    GetOwner()->AddPendingEvent(e);
     Terminate();
 }
 
-void SSHRemoteProcess::OnTerminate(clCommandEvent& event)
-{
-    clProcessEvent e(wxEVT_ASYNC_PROCESS_TERMINATED);
-    GetOwner()->AddPendingEvent(e);
-    Terminate();
-}
+void SSHRemoteProcess::OnTerminate(clCommandEvent& event) { Terminate(); }
 
 void SSHRemoteProcess::OnOutput(clCommandEvent& event)
 {
