@@ -17,26 +17,25 @@ wxCrafter::ResourceLoader::ResourceLoader(const wxString& skin)
         zipFile << wxStandardPaths::Get().GetDataDir() << wxFileName::GetPathSeparator() << skin << wxT(".zip");
         clZipReader zip(zipFile);
 
-        wxFileName extractactionDir(clStandardPaths::Get().GetTempDir(), "");
-        extractactionDir.AppendDir("CodeLite.wxCrafter.Tmp");
-
         std::unordered_map<wxString, clZipReader::Entry> entries;
         zip.ExtractAll(entries);
         if(entries.empty()) { return; }
 
         // Loop over the files
         for(const auto& entry : entries) {
-            wxString name = wxFileName(entry.first).GetName();
+            wxFileName fn = wxFileName(entry.first);
+            wxString name = fn.GetName();
             clZipReader::Entry d = entry.second;
             if(d.len && d.buffer) {
-                wxMemoryInputStream is(d.buffer, d.len);
-                wxImage img(is, wxBITMAP_TYPE_PNG);
-                wxBitmap bmp(img);
-                if(bmp.IsOk()) {
-                    m_bitmaps[name] = bmp;
+                // Avoid wxAsserts by checking it's likely to be a png before creating the image
+                if(fn.GetExt() == "png") {
+                    wxMemoryInputStream is(d.buffer, d.len);
+                    wxImage img(is, wxBITMAP_TYPE_PNG);
+                    wxBitmap bmp(img);
+                    if(bmp.IsOk()) { m_bitmaps[name] = bmp; }
                 } else {
                     wxString fileContent((const char*)d.buffer, d.len);
-                    m_files.insert({ name, fileContent });
+                    m_files.insert({ fn.GetFullName(), fileContent });
                 }
                 // release the memory
                 free(d.buffer);
