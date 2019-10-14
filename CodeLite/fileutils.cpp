@@ -38,6 +38,7 @@
 #include <fstream>
 #include "StringUtils.h"
 #include "asyncprocess.h"
+#include <wx/file.h>
 #if wxUSE_GUI
 #include <wx/msgdlg.h>
 #endif
@@ -50,6 +51,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #endif
+#include <wx/filename.h>
 
 void FileUtils::OpenFileExplorer(const wxString& path)
 {
@@ -82,11 +84,12 @@ void FileUtils::OpenTerminal(const wxString& path, const wxString& user_command,
 
 bool FileUtils::WriteFileContent(const wxFileName& fn, const wxString& content, const wxMBConv& conv)
 {
-    wxFFile file(fn.GetFullPath(), wxT("w+b"));
-    if(!file.IsOpened()) { return false; }
-
-    if(!file.Write(content, conv)) { return false; }
-    return true;
+    wxFile file(fn.GetFullPath(), wxFile::write);
+    if(file.IsOpened()) {
+        return file.Write(content, conv);
+    } else {
+        return false;
+    }
 }
 
 bool FileUtils::ReadFileContent(const wxFileName& fn, wxString& data, const wxMBConv& conv)
@@ -161,7 +164,7 @@ void FileUtils::OSXOpenDebuggerTerminalAndGetTTY(const wxString& path, const wxS
     int rc = system("chmod +x /tmp/codelite-lldb-helper.sh");
     wxUnusedVar(rc);
 
-    command << "/usr/bin/open -a " << appname << " /tmp/codelite-lldb-helper.sh";
+    command << "open -a " << appname << " /tmp/codelite-lldb-helper.sh";
     clDEBUG() << "Executing: " << command;
     long res = ::wxExecute(command);
     if(res == 0) {
@@ -546,8 +549,10 @@ unsigned int FileUtils::UTF8Length(const wchar_t* uptr, unsigned int tlen)
 // This is readlink on steroids: it also makes-absolute, and dereferences any symlinked dirs in the path
 wxString FileUtils::RealPath(const wxString& filepath)
 {
-#if defined(__WXGTK__)
+#if defined(__WXGTK__) || defined(__WXOSX__)
     if(!filepath.empty()) {
+        wxStructStat stbuff;
+        if((::wxLstat(filepath, &stbuff) != 0) || !S_ISLNK(stbuff.st_mode)) { return filepath; }
         char* buf = realpath(filepath.mb_str(wxConvUTF8), NULL);
         if(buf != NULL) {
             wxString result(buf, wxConvUTF8);

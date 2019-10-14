@@ -26,8 +26,7 @@ clTabRendererGTK3::clTabRendererGTK3()
     smallCurveWidth = 0;
     overlapWidth = 0;
     verticalOverlapWidth = 0;
-    xSpacer = 15;
-    ySpacer = EditorConfigST::Get()->GetOptions()->GetNotebookTabHeight() + 2;
+    //xSpacer = 15;
 }
 
 clTabRendererGTK3::~clTabRendererGTK3() {}

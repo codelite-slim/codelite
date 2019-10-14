@@ -364,7 +364,7 @@ bool ReadFileWithConversion(const wxString& fileName, wxString& content, wxFontE
 {
     wxLogNull noLog;
     content.Clear();
-    wxFFile file(fileName, wxT("rb"));
+    wxFile file(fileName, wxFile::read);
 
     const wxCharBuffer name = _C(fileName);
     if(file.IsOpened()) {
@@ -372,7 +372,9 @@ bool ReadFileWithConversion(const wxString& fileName, wxString& content, wxFontE
         // If we got a BOM pointer, test to see whether the file is BOM file
         if(bom && IsBOMFile(name.data())) { return ReadBOMFile(name.data(), content, *bom); }
 
-        if(encoding == wxFONTENCODING_DEFAULT) encoding = EditorConfigST::Get()->GetOptions()->GetFileFontEncoding();
+        if(encoding == wxFONTENCODING_DEFAULT) {
+            encoding = EditorConfigST::Get()->GetOptions()->GetFileFontEncoding();
+        }
 
         // first try the user defined encoding (except for UTF8: the UTF8 builtin appears to be faster)
         if(encoding != wxFONTENCODING_UTF8) {
@@ -1192,18 +1194,7 @@ wxFileName wxReadLink(const wxFileName& filename)
 wxString CLRealPath(const wxString& filepath) // This is readlink on steroids: it also makes-absolute, and dereferences
                                               // any symlinked dirs in the path
 {
-#if defined(__WXGTK__)
-    if(!filepath.empty()) {
-        char* buf = realpath(filepath.mb_str(wxConvUTF8), NULL);
-        if(buf != NULL) {
-            wxString result(buf, wxConvUTF8);
-            free(buf);
-            return result;
-        }
-    }
-#endif
-
-    return filepath;
+    return FileUtils::RealPath(filepath);
 }
 
 int wxStringToInt(const wxString& str, int defval, int minval, int maxval)
@@ -1945,9 +1936,13 @@ void clKill(int processID, wxSignal signo, bool kill_whole_group, bool as_superu
     ::wxKill(processID, signo, NULL, kill_whole_group ? wxKILL_CHILDREN : wxKILL_NOCHILDREN);
 #else
     wxString sudoAskpass = ::wxGetenv("SUDO_ASKPASS");
-    if(as_superuser && wxFileName::Exists("/usr/bin/sudo") && wxFileName::Exists(sudoAskpass)) {
+    const char* sudo_path;
+
+    sudo_path = "/usr/bin/sudo";
+    if(!wxFileName::Exists(sudo_path)) { sudo_path = "/usr/local/bin/sudo"; }
+    if(as_superuser && wxFileName::Exists(sudo_path) && wxFileName::Exists(sudoAskpass)) {
         wxString cmd;
-        cmd << "/usr/bin/sudo --askpass kill -" << (int)signo << " ";
+        cmd << sudo_path << " --askpass kill -" << (int)signo << " ";
         if(kill_whole_group) { cmd << "-"; }
         cmd << processID;
         int rc = system(cmd.mb_str(wxConvUTF8).data());

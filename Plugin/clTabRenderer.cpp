@@ -16,12 +16,13 @@
 #include <wx/settings.h>
 #include <wx/xrc/xmlres.h>
 #include "clSystemSettings.h"
+#include "wxStringHash.h"
 
 #if CL_BUILD
 #include "drawingutils.h"
 #endif
 
-#define X_BUTTON_SIZE 14
+static int X_BUTTON_SIZE = 12;
 
 clTabColours::clTabColours() { InitDarkColours(); }
 
@@ -139,6 +140,12 @@ void clTabInfo::CalculateOffsets(size_t style, wxDC& dc)
     int M_spacer = m_tabCtrl ? m_tabCtrl->GetArt()->majorCurveWidth : 5;
     int S_spacer = m_tabCtrl ? m_tabCtrl->GetArt()->smallCurveWidth : 2;
 
+    static bool once = true;
+    if(m_tabCtrl && once) {
+        X_BUTTON_SIZE = m_tabCtrl->FromDIP(X_BUTTON_SIZE);
+        once = false;
+    }
+    
     wxFont font = clTabRenderer::GetTabFont(true);
     dc.SetFont(font);
 
@@ -232,16 +239,18 @@ wxRect clTabInfo::GetCloseButtonRect() const
     return xRect;
 }
 
+std::unordered_map<wxString, clTabRenderer*> clTabRenderer::ms_Renderes;
+
 clTabRenderer::clTabRenderer(const wxString& name)
     : bottomAreaHeight(0)
     , majorCurveWidth(0)
     , smallCurveWidth(0)
     , overlapWidth(0)
     , verticalOverlapWidth(0)
-    , xSpacer(10)
+    , xSpacer(20)
     , m_name(name)
 {
-    ySpacer = EditorConfigST::Get()->GetOptions()->GetNotebookTabHeight();
+    ySpacer = EditorConfigST::Get()->GetOptions()->GetNotebookTabHeight() + 2;
 }
 
 wxFont clTabRenderer::GetTabFont(bool bold)
@@ -340,25 +349,21 @@ int clTabRenderer::GetDefaultBitmapHeight(int Y_spacer)
 
 clTabRenderer::Ptr_t clTabRenderer::CreateRenderer(size_t tabStyle)
 {
+    if(ms_Renderes.empty()) {
+        RegisterRenderer(new clTabRendererSquare());
+        RegisterRenderer(new clTabRendererGTK3());
+        RegisterRenderer(new clTabRendererClassic());
+        RegisterRenderer(new clTabRendererCurved());
+    }
+
     wxString tab = clConfig::Get().Read("TabStyle", wxString("GTK3"));
     wxString name = tab.Upper();
     if((tabStyle & kNotebook_LeftTabs) || (tabStyle & kNotebook_RightTabs)) {
-        // Only these styles support vertical tabs
-        if(name == "MINIMAL") {
-            return clTabRenderer::Ptr_t(new clTabRendererSquare());
-        } else {
-            return clTabRenderer::Ptr_t(new clTabRendererGTK3());
-        }
+        return clTabRenderer::Ptr_t(Create("MINIMAL"));
     }
-    if(name == "MINIMAL") {
-        return clTabRenderer::Ptr_t(new clTabRendererSquare());
-    } else if(name == "TRAPEZOID") {
-        return clTabRenderer::Ptr_t(new clTabRendererCurved());
-    } else if(name == "GTK3") {
-        return clTabRenderer::Ptr_t(new clTabRendererGTK3());
-    } else {
-        return clTabRenderer::Ptr_t(new clTabRendererClassic());
-    }
+    clTabRenderer* r = Create(name);
+    if(!r) { r = Create("DEFAULT"); }
+    return clTabRenderer::Ptr_t(r);
 }
 
 wxArrayString clTabRenderer::GetRenderers()
@@ -429,6 +434,8 @@ void clTabRenderer::DrawMarker(wxDC& dc, const clTabInfo& tabInfo, const clTabCo
     wxPen markerPen(colours.markerColour);
     // Draw marker line if needed
     // wxRect confinedRect = parent->GetClientRect();
+    bool isGTK3 = (GetName() == "GTK3");
+    wxDirection direction;
     wxPoint p1, p2;
     if((style & kNotebook_LeftTabs)) {
         p1 = tabInfo.GetRect().GetTopRight();
@@ -443,16 +450,31 @@ void clTabRenderer::DrawMarker(wxDC& dc, const clTabInfo& tabInfo, const clTabCo
         DrawMarkerLine(dc, p1, p2, wxRIGHT);
     } else if(style & kNotebook_BottomTabs) {
         // Bottom tabs
-        p1 = tabInfo.GetRect().GetTopLeft();
-        p2 = tabInfo.GetRect().GetTopRight();
+        if(isGTK3) {
+            direction = wxDOWN;
+            p1 = tabInfo.GetRect().GetTopLeft();
+            p2 = tabInfo.GetRect().GetTopRight();
+        } else {
+            direction = wxUP;
+            p1 = tabInfo.GetRect().GetBottomLeft();
+            p2 = tabInfo.GetRect().GetBottomRight();
+        }
         dc.SetPen(markerPen);
-        DrawMarkerLine(dc, p1, p2, wxDOWN);
+        DrawMarkerLine(dc, p1, p2, direction);
     } else {
         // Top tabs
-        p1 = tabInfo.GetRect().GetBottomLeft();
-        p2 = tabInfo.GetRect().GetBottomRight();
+        if(isGTK3) {
+            direction = wxUP;
+            p1 = tabInfo.GetRect().GetBottomLeft();
+            p2 = tabInfo.GetRect().GetBottomRight();
+
+        } else {
+            direction = wxDOWN;
+            p1 = tabInfo.GetRect().GetTopLeft();
+            p2 = tabInfo.GetRect().GetTopRight();
+        }
         dc.SetPen(markerPen);
-        DrawMarkerLine(dc, p1, p2, wxUP);
+        DrawMarkerLine(dc, p1, p2, direction);
     }
 }
 
@@ -481,3 +503,16 @@ void clTabRenderer::DrawMarkerLine(wxDC& dc, const wxPoint& p1, const wxPoint& p
 }
 
 int clTabRenderer::GetXButtonSize() { return X_BUTTON_SIZE; }
+
+void clTabRenderer::RegisterRenderer(clTabRenderer* renderer)
+{
+    if(!renderer) { return; }
+    if(ms_Renderes.count(renderer->GetName())) { return; }
+    ms_Renderes.insert({ renderer->GetName(), renderer });
+}
+
+clTabRenderer* clTabRenderer::Create(const wxString& name)
+{
+    if(ms_Renderes.count(name) == 0) { return nullptr; }
+    return ms_Renderes.find(name)->second->New();
+}
