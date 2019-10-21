@@ -1,3 +1,4 @@
+#include "ColoursAndFontsManager.h"
 #include "CxxTemplateFunction.h"
 #include "bitmap_loader.h"
 #include "cc_box_tip_window.h"
@@ -14,14 +15,11 @@
 #include "wxCodeCompletionBoxManager.h"
 #include <wx/app.h>
 #include <wx/dcbuffer.h>
+#include <wx/dcgraph.h>
 #include <wx/dcmemory.h>
+#include <wx/display.h>
 #include <wx/font.h>
 #include <wx/stc/stc.h>
-#include <wx/dcgraph.h>
-#include "ieditor.h"
-#include "imanager.h"
-#include <wx/display.h>
-#include "ColoursAndFontsManager.h"
 
 static int LINES_PER_PAGE = 8;
 static int Y_SPACER = 2;
@@ -728,16 +726,7 @@ void wxCodeCompletionBox::DoDestroyTipWindow()
 void wxCodeCompletionBox::DoShowCompletionBox()
 {
     CHECK_PTR_RET(m_stc);
-
-    // guesstimate a line height
-    wxMemoryDC dc;
-    wxBitmap bmp(1, 1);
-    dc.SelectObject(bmp);
-    wxFont font = m_stc->StyleGetFont(0);
-    dc.SetFont(font);
-    wxSize textSize = dc.GetTextExtent("Tp");
-
-    int lineHeight = textSize.y + 3; // 3 pixels margins
+    int lineHeight = m_stc->TextHeight(m_stc->GetCurrentLine());
     wxRect rect = GetRect();
 
     // determine the box x position
@@ -886,7 +875,34 @@ wxCodeCompletionBox::LSPCompletionsToEntries(const LSP::CompletionItem::Vec_t& c
             // According to the spec: if textEdit exists, we ignore 'insertText'
             insertText = completion->GetTextEdit()->GetNewText();
         }
+
         entry->SetInsertText(insertText);
+        wxChar ch = text.empty() ? 0 : text[0];
+        // Handle special cases
+        if(text.StartsWith("include <")) {
+            // include statement
+            entry->SetInsertText("include <|>");
+            entry->SetIsSnippet(true);
+        } else if(text.StartsWith("include \"")) {
+            entry->SetInsertText("include \"|\"");
+            entry->SetIsSnippet(true);
+        } else if(ch == L'•') {
+            // this completion entry triggers an #include insertion
+            entry->SetTriggerInclude(!completion->GetAdditionalText().empty());
+            if(entry->IsTriggerInclude()) {
+                const auto& v = completion->GetAdditionalText();
+                comment = v[0]->GetNewText();
+                comment.Trim().Trim(false);
+                if(comment.Contains("\"")) {
+                    comment = comment.AfterFirst('"');
+                    comment.Prepend("\"");
+                } else if(comment.Contains("<")) {
+                    comment = comment.AfterFirst('<');
+                    comment.Prepend("<");
+                }
+            }
+        }
+
         entry->SetImgIndex(imgIndex);
         entry->SetComment(comment);
         entry->SetIsFunction(completion->GetKind() == LSP::CompletionItem::kKindConstructor ||

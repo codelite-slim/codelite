@@ -93,8 +93,8 @@
     <Ignorefiles/>
     <Regexes/>
     <Excludepaths>
-      <Path>C:\src\codelite\LiteEditor\Win_x64_Debug</Path>
-      <Path>C:\src\codelite\LiteEditor\Win_x64_Release</Path>
+      <Path>Win_x64_Debug\</Path>
+      <Path>Win_x64_Release\</Path>
     </Excludepaths>
     <Extensions>
       <![CDATA[*.cpp;*.c;*.h;*.hpp;*.xrc;*.wxcp;*.fbp;*.iss;*.sh]]>
@@ -288,10 +288,6 @@
       <File Name="symbols_dialog_base.h"/>
       <File Name="tags_options_dlg.cpp"/>
       <File Name="tags_options_dlg.h"/>
-      <File Name="addincludefiledlgbase.h"/>
-      <File Name="addincludefiledlg.cpp"/>
-      <File Name="addincludefiledlg.h"/>
-      <File Name="addincludefiledlgbase.cpp"/>
       <File Name="movefuncimpldlg.h"/>
       <File Name="movefuncimplbasedlg.cpp"/>
       <File Name="movefuncimplbasedlg.h"/>
@@ -309,7 +305,6 @@
       <File Name="AddFunctionsImpDlg.cpp"/>
       <File Name="AddFunctionsImpDlg.h"/>
       <File Name="workspacesettingsbase.wxcp"/>
-      <File Name="AddIncludeFile.wxcp"/>
       <File Name="../formbuilder/tags_options_base_dlg.wxcp"/>
       <File Name="SelectProjectsDlg.h"/>
       <File Name="SelectProjectsDlg.cpp"/>
@@ -698,7 +693,6 @@
     <File Name="debuggerasciiviewerbase.fbp"/>
     <File Name="tagsparsersearchpathsbasedlg.fbp"/>
     <File Name="tasksfindwhatdlgbase.fbp"/>
-    <File Name="quickfindbarbase.fbp"/>
     <File Name="editor_options_codenav.fbp"/>
     <File Name="editor_options_right_margin.fbp"/>
     <File Name="editor_options_guides.fbp"/>
@@ -871,7 +865,6 @@
       <File Name="compiler_page_plugin_bitmaps.cpp"/>
       <File Name="messagepane_liteeditor_bitmaps.cpp"/>
       <File Name="AccelTableBaseDlg_liteeditor_bitmaps.cpp"/>
-      <File Name="AddIncludeFile_liteeditor_bitmaps.cpp"/>
       <File Name="tags_options_base_dlg_formbuilder_bitmaps.cpp"/>
       <File Name="editor_options_guides_liteeditor_bitmaps.cpp"/>
       <File Name="editor_options_terminal_liteeditor_bitmaps.cpp"/>
