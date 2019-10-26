@@ -64,7 +64,7 @@ void clTabRendererGTK3::Draw(wxWindow* parent, wxDC& dc, wxDC& fontDC, const clT
                                                                                          : tabInfo.GetBitmap();
         dc.DrawBitmap(bmp, tabInfo.m_bmpX + rr.GetX(), tabInfo.m_bmpY + rr.GetY());
     }
-    wxString label = tabInfo.m_label;
+    wxString label = tabInfo.GetBestLabel(style);
     if(bVerticalTabs) {
         // Check that the text can fit into the tab label
         int textEndCoord = tabInfo.m_textX + tabInfo.m_textWidth;
@@ -76,9 +76,8 @@ void clTabRendererGTK3::Draw(wxWindow* parent, wxDC& dc, wxDC& fontDC, const clT
     }
 
     fontDC.DrawText(label, tabInfo.m_textX + rr.GetX(), tabInfo.m_textY + rr.GetY());
-    if(tabInfo.IsActive() && (style & kNotebook_CloseButtonOnActiveTab)) {
-        // Draw the X button
-        DrawButton(parent, dc, tabInfo, colours, buttonState);
+    if(style & kNotebook_CloseButtonOnActiveTab) {
+        DrawButton(parent, dc, tabInfo, colours, tabInfo.IsActive() ? buttonState : eButtonState::kDisabled);
     }
     if(tabInfo.IsActive()) { DrawMarker(dc, tabInfo, colours, style | kNotebook_UnderlineActiveTab); }
 }

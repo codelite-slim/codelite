@@ -112,7 +112,6 @@ Notebook::Notebook(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wx
         // Add PNG and Bitmap handler
         wxImage::AddHandler(new wxPNGHandler);
         wxXmlResource::Get()->AddHandler(new wxBitmapXmlHandler);
-        Notebook_Init_Bitmaps();
         once = true;
     }
     style = (style & ~wxWINDOW_STYLE_MASK); // filter out wxWindow styles
@@ -130,25 +129,37 @@ Notebook::Notebook(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wx
 
 Notebook::~Notebook() {}
 
-void Notebook::AddPage(wxWindow* page, const wxString& label, bool selected, const wxBitmap& bmp)
+void Notebook::AddPage(wxWindow* page, const wxString& label, bool selected, const wxBitmap& bmp,
+                       const wxString& shortLabel)
 {
     clTabInfo::Ptr_t tab(new clTabInfo(m_tabCtrl, GetStyle(), page, label, bmp));
+    wxString shortl = shortLabel;
+    if(shortl.empty() && !label.empty()) { shortl = label.Mid(0, wxMin(label.Length(), 3)).Upper(); }
+    tab->SetShortLabel(shortl);
     tab->SetActive(selected, GetStyle());
     m_tabCtrl->AddPage(tab);
 }
 
 void Notebook::DoChangeSelection(wxWindow* page) { m_windows->Select(page); }
 
-bool Notebook::InsertPage(size_t index, wxWindow* page, const wxString& label, bool selected, const wxBitmap& bmp)
+bool Notebook::InsertPage(size_t index, wxWindow* page, const wxString& label, bool selected, const wxBitmap& bmp,
+                          const wxString& shortLabel)
 {
     clTabInfo::Ptr_t tab(new clTabInfo(m_tabCtrl, GetStyle(), page, label, bmp));
+    wxString shortl = shortLabel;
+    if(shortl.empty() && !label.empty()) { shortl = label.Mid(0, wxMin(label.Length(), 3)).Upper(); }
+    tab->SetShortLabel(shortl);
     tab->SetActive(selected, GetStyle());
     return m_tabCtrl->InsertPage(index, tab);
 }
 
 void Notebook::SetStyle(size_t style)
 {
+    size_t oldStyle = m_tabCtrl->GetStyle();
+    bool oldVerticalState = (oldStyle & (kNotebook_RightTabs | kNotebook_LeftTabs));
+    bool newVerticalState = (style & (kNotebook_RightTabs | kNotebook_LeftTabs));
     m_tabCtrl->SetStyle(style);
+    if(oldVerticalState != newVerticalState) { m_tabCtrl->DoSetBestSize(); }
     PositionControls();
     m_tabCtrl->Refresh();
 }
@@ -262,7 +273,12 @@ void clTabCtrl::DoSetBestSize()
     wxFont font = clTabRenderer::GetTabFont(true);
     gcdc.SetFont(font);
 
-    wxSize sz = gcdc.GetTextExtent("_WORKSPACE_");
+    wxString text;
+    for(clTabInfo::Ptr_t ti : m_tabs) {
+        if(text.length() < ti->GetBestLabel(m_style).length()) { text = ti->GetBestLabel(m_style); }
+    }
+    if(text.empty()) { text = "_WORKSPACE_"; }
+    wxSize sz = gcdc.GetTextExtent(text);
     int bmpHeight = clTabRenderer::GetDefaultBitmapHeight(GetArt()->ySpacer);
 
     m_nHeight = sz.GetHeight() + (4 * GetArt()->ySpacer);
@@ -270,6 +286,13 @@ void clTabCtrl::DoSetBestSize()
     m_nWidth = sz.GetWidth();
 
     if(IsVerticalTabs()) {
+        m_nWidth += 2 * GetArt()->xSpacer;
+        if(m_style & kNotebook_CloseButtonOnActiveTab) {
+            // add the button width
+            m_nWidth += 5;
+            m_nWidth += clTabRenderer::GetXButtonSize();
+            m_nWidth += 5;
+        }
         SetSizeHints(wxSize(m_nWidth, -1));
         SetSize(m_nWidth, -1);
     } else {
@@ -417,9 +440,6 @@ void clTabCtrl::OnPaint(wxPaintEvent& e)
         clTabInfo::Ptr_t tab = m_visibleTabs.at(i);
         if(tab->IsActive()) { activeTabInex = i; }
 
-        // send event per tab to get their colours
-        clColourEvent colourEvent(wxEVT_COLOUR_TAB);
-        colourEvent.SetPage(tab->GetWindow());
         clTabColours* pColours = &m_colours;
         clTabColours user_colours;
         m_art->Draw(this, gcdc, gcdc, *tab.get(), (*pColours), m_style, m_xButtonState);
@@ -494,16 +514,17 @@ void clTabCtrl::UpdateVisibleTabs(bool forceReshuffle)
 void clTabCtrl::OnLeftDown(wxMouseEvent& event)
 {
     event.Skip();
+    const wxPoint& evetPos = event.GetPosition();
     m_closeButtonClickedIndex = wxNOT_FOUND;
 
-    if((GetStyle() & kNotebook_ShowFileListButton) && m_chevronRect.Contains(event.GetPosition())) {
+    if((GetStyle() & kNotebook_ShowFileListButton) && m_chevronRect.Contains(evetPos)) {
         // we will handle this later in the "Mouse Up" event
         return;
     }
 
     int tabHit, realPos;
     eDirection align;
-    TestPoint(event.GetPosition(), realPos, tabHit, align);
+    TestPoint(evetPos, realPos, tabHit, align);
     if(tabHit == wxNOT_FOUND) return;
 
     // Did we hit the active tab?
@@ -518,7 +539,8 @@ void clTabCtrl::OnLeftDown(wxMouseEvent& event)
         // we clicked on the selected index
         clTabInfo::Ptr_t t = m_visibleTabs.at(tabHit);
         wxRect xRect = t->GetCloseButtonRect();
-        if(xRect.Contains(event.GetPosition())) {
+
+        if(xRect.Contains(evetPos)) {
             m_closeButtonClickedIndex = tabHit;
             m_xButtonState = eButtonState::kPressed;
             Refresh();
@@ -833,9 +855,7 @@ void clTabCtrl::SetStyle(size_t style)
         m_colours.InitLightColours();
     }
 
-    for(size_t i = 0; i < m_tabs.size(); ++i) {
-        m_tabs.at(i)->CalculateOffsets(GetStyle());
-    }
+    for(size_t i = 0; i < m_tabs.size(); ++i) { m_tabs.at(i)->CalculateOffsets(GetStyle()); }
 
     GetArt()->AdjustColours(m_colours, GetStyle());
     m_visibleTabs.clear();

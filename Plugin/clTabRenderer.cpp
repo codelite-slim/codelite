@@ -151,7 +151,9 @@ void clTabInfo::CalculateOffsets(size_t style, wxDC& dc)
     wxFont font = clTabRenderer::GetTabFont(false);
     dc.SetFont(font);
 
-    wxSize sz = dc.GetTextExtent(m_label);
+    bool bVerticalTabs = IS_VERTICAL_TABS(style);
+    // On vertical tabs, use the short label
+    wxSize sz = dc.GetTextExtent(GetBestLabel(style));
     wxSize fixedHeight = dc.GetTextExtent("Tp");
     m_height = fixedHeight.GetHeight() + (4 * Y_spacer);
 
@@ -164,16 +166,25 @@ void clTabInfo::CalculateOffsets(size_t style, wxDC& dc)
     m_width += M_spacer;
     m_width += S_spacer;
 
-    bool bVerticalTabs = IS_VERTICAL_TABS(style);
+    // x button
+    wxRect xrect;
+    if((style & kNotebook_CloseButtonOnActiveTab)) {
+        xrect = wxRect(m_width, 0, X_BUTTON_SIZE, X_BUTTON_SIZE);
+        m_bmpCloseX = xrect.GetX();
+        m_bmpCloseY = 0; // we will fix this later
+        m_width += xrect.GetWidth();
+        m_width += X_spacer;
+    }
+
     // bitmap
     m_bmpX = wxNOT_FOUND;
     m_bmpY = wxNOT_FOUND;
 
     if(m_bitmap.IsOk() && !bVerticalTabs) {
         m_bmpX = m_width;
-        m_width += X_spacer;
         m_width += m_bitmap.GetScaledWidth();
         m_bmpY = ((m_height - m_bitmap.GetScaledHeight()) / 2);
+        m_width += X_spacer;
     }
 
     // Text
@@ -181,16 +192,6 @@ void clTabInfo::CalculateOffsets(size_t style, wxDC& dc)
     m_textY = ((m_height - sz.y) / 2);
     m_width += sz.x;
     m_textWidth = sz.x;
-
-    // x button
-    wxRect xrect;
-    if((style & kNotebook_CloseButtonOnActiveTab)) {
-        m_width += X_spacer;
-        xrect = wxRect(m_width, 0, X_BUTTON_SIZE, X_BUTTON_SIZE);
-        m_bmpCloseX = xrect.GetX();
-        m_bmpCloseY = 0; // we will fix this later
-        m_width += xrect.GetWidth();
-    }
 
     m_width += X_spacer;
     m_width += M_spacer;
@@ -236,9 +237,18 @@ void clTabInfo::SetActive(bool active, size_t style)
 
 wxRect clTabInfo::GetCloseButtonRect() const
 {
-    wxRect xRect(GetRect().x + GetBmpCloseX(), GetRect().y + GetBmpCloseY(), clTabRenderer::GetXButtonSize(),
-                 clTabRenderer::GetXButtonSize());
-    return xRect;
+    wxRect xRect(GetBmpCloseX() + GetRect().x, 0, clTabRenderer::GetXButtonSize(), clTabRenderer::GetXButtonSize());
+    xRect.Inflate(2);
+    return xRect.CenterIn(GetRect(), wxVERTICAL);
+}
+
+const wxString& clTabInfo::GetBestLabel(size_t style) const
+{
+    if((style & (kNotebook_RightTabs | kNotebook_LeftTabs)) && !m_shortLabel.empty()) {
+        return m_shortLabel;
+    } else {
+        return m_label;
+    }
 }
 
 std::unordered_map<wxString, clTabRenderer*> clTabRenderer::ms_Renderes;
@@ -250,6 +260,7 @@ clTabRenderer::clTabRenderer(const wxString& name)
     , overlapWidth(0)
     , verticalOverlapWidth(0)
     , xSpacer(20)
+    , ySpacer(5)
     , m_name(name)
 {
     ySpacer = EditorConfigST::Get()->GetOptions()->GetNotebookTabHeight() + 2;

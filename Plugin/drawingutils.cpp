@@ -611,6 +611,9 @@ void DrawingUtils::DrawButtonX(wxDC& dc, wxWindow* win, const wxRect& rect, cons
     case eButtonState::kPressed:
         flags = wxCONTROL_PRESSED;
         break;
+    case eButtonState::kDisabled:
+        flags = wxCONTROL_DISABLED;
+        break;
     default:
         break;
     }
@@ -623,11 +626,15 @@ void DrawingUtils::DrawButtonX(wxDC& dc, wxWindow* win, const wxRect& rect, cons
 #else
     // Calculate the circle radius:
     wxRect innerRect(rect);
+    bool isBgDark = IsDark(bgColouur);
     wxColour b = bgColouur;
     wxColour xColour = penColour;
     switch(state) {
+    case eButtonState::kDisabled:
+        xColour = isBgDark ? bgColouur.ChangeLightness(130) : bgColouur.ChangeLightness(80);
+        break;
     case eButtonState::kHover:
-        b = b.ChangeLightness(120);
+        b = b.ChangeLightness(110);
         break;
     case eButtonState::kPressed:
         b = b.ChangeLightness(70);
@@ -638,7 +645,7 @@ void DrawingUtils::DrawButtonX(wxDC& dc, wxWindow* win, const wxRect& rect, cons
     }
 
     // Draw the background
-    if(state != eButtonState::kNormal) {
+    if((state != eButtonState::kNormal) && (state != eButtonState::kDisabled)) {
         dc.SetPen(b);
         dc.SetBrush(b);
         dc.DrawRoundedRectangle(rect, 2.0);
