@@ -284,6 +284,16 @@ void clRowEntry::ClearRects()
     m_rowRect = wxRect();
 }
 
+static int GetSizeDIP(int size, wxWindow* win)
+{
+    if(!win) { return size; }
+#if wxCHECK_VERSION(3, 1, 0)
+    return win->FromDIP(size);
+#else
+    return size;
+#endif
+}
+
 void clRowEntry::Render(wxWindow* win, wxDC& dc, const clColours& c, int row_index, clSearchText* searcher)
 {
     wxUnusedVar(searcher);
@@ -322,8 +332,8 @@ void clRowEntry::Render(wxWindow* win, wxDC& dc, const clColours& c, int row_ind
     for(size_t i = 0; i < m_cells.size(); ++i) {
         bool last_cell = (i == (m_cells.size() - 1));
         colours = c; // reset the colours
-        wxFont f = clScrolledPanel::GetDefaultFont();
         clCellValue& cell = GetColumn(i);
+        wxFont f = cell.GetFont().IsOk() ? cell.GetFont() : m_tree->GetDefaultFont();
         if(cell.GetFont().IsOk()) { f = cell.GetFont(); }
         if(cell.GetTextColour().IsOk()) { colours.SetItemTextColour(cell.GetTextColour()); }
         if(cell.GetBgColour().IsOk()) { colours.SetItemBgColour(cell.GetBgColour()); }
@@ -359,9 +369,10 @@ void clRowEntry::Render(wxWindow* win, wxDC& dc, const clColours& c, int row_ind
                         SetRects(GetItemRect(), wxRect());
                         continue;
                     }
+                    
                     buttonRect.Deflate((buttonRect.GetWidth() / 3), (buttonRect.GetHeight() / 3));
                     wxRect tribtn = buttonRect;
-                    dc.SetPen(wxPen(buttonColour, 2));
+                    dc.SetPen(wxPen(buttonColour, GetSizeDIP(2, win)));
                     if(IsExpanded()) {
                         tribtn.SetHeight(tribtn.GetHeight() - tribtn.GetHeight() / 2);
                         tribtn = tribtn.CenterIn(buttonRect);
@@ -445,13 +456,13 @@ void clRowEntry::Render(wxWindow* win, wxDC& dc, const clColours& c, int row_ind
             cell.SetDropDownRect(dropDownRect);
             textXOffset += dropDownRect.GetWidth();
             textXOffset += X_SPACER;
-            
+
             // Draw a separator line between the drop down arrow and the rest of the cell content
             dropDownRect.Deflate(3);
             dropDownRect = dropDownRect.CenterIn(rowRect, wxVERTICAL);
             dc.SetPen(wxPen(colours.GetHeaderVBorderColour(), 1, PEN_STYLE));
             dc.DrawLine(dropDownRect.GetTopLeft(), dropDownRect.GetBottomLeft());
-            
+
         } else {
             cell.SetDropDownRect(wxRect());
         }
@@ -591,7 +602,7 @@ int clRowEntry::CalcItemWidth(wxDC& dc, int rowHeight, size_t col)
     if(col >= m_cells.size()) { return 0; }
 
     clCellValue& cell = GetColumn(col);
-    wxFont f = clScrolledPanel::GetDefaultFont();
+    wxFont f = GetFont().IsOk() ? GetFont() : m_tree->GetDefaultFont();
     if(cell.GetFont().IsOk()) { f = cell.GetFont(); }
     dc.SetFont(f);
 

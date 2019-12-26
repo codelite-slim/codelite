@@ -67,12 +67,23 @@ bool clTreeCtrl::Create(wxWindow* parent, wxWindowID id, const wxPoint& pos, con
     return true;
 }
 
-void clTreeCtrl::DoInitialize()
+void clTreeCtrl::UpdateLineHeight()
 {
-    wxSize textSize = GetTextSize("Tp");
+    wxMemoryDC tmpDC;
+    wxBitmap bmp(1, 1);
+    tmpDC.SelectObject(bmp);
+    wxGCDC gcdc(tmpDC);
+
+    gcdc.SetFont(GetDefaultFont());
+    wxSize textSize = gcdc.GetTextExtent("Tp");
+
     SetLineHeight(clRowEntry::Y_SPACER + textSize.GetHeight() + clRowEntry::Y_SPACER);
     SetIndent(GetLineHeight());
+}
 
+void clTreeCtrl::DoInitialize()
+{
+    UpdateLineHeight();
     Bind(wxEVT_IDLE, &clTreeCtrl::OnIdle, this);
     Bind(wxEVT_PAINT, &clTreeCtrl::OnPaint, this);
     Bind(wxEVT_ERASE_BACKGROUND, [&](wxEraseEvent& event) { wxUnusedVar(event); });
@@ -149,12 +160,11 @@ void clTreeCtrl::OnPaint(wxPaintEvent& event)
         while(
             (canScrollDown &&
              (items.size() < maxItems)) || // While can move the scroll thumb a bit further down, increase the list size
-            (!canScrollDown &&
-             (items.size() < (maxItems - 1)))) { // the scroll thumb cant be moved further down, so it
-                                                 // makes no sense on hiding the last item (we wont be
-                                                 // able to reach it), so make sure we extend the list
-                                                 // up to max-items -1, this means that the last item is
-                                                 // always fully visible
+            (!canScrollDown && (items.size() < (maxItems - 1)))) { // the scroll thumb cant be moved further down, so it
+                                                                   // makes no sense on hiding the last item (we wont be
+                                                                   // able to reach it), so make sure we extend the list
+                                                                   // up to max-items -1, this means that the last item
+                                                                   // is always fully visible
             firstItem = m_model.GetRowBefore(firstItem, true);
             if(!firstItem) { break; }
             items.insert(items.begin(), firstItem);
@@ -729,14 +739,23 @@ bool clTreeCtrl::DoKeyDown(const wxKeyEvent& event)
     wxTreeItemId selectedItem = GetSelection();
     if(!selectedItem.IsOk()) { return true; }
 
+    clRowEntry* row = m_model.ToPtr(selectedItem);
     if(event.GetKeyCode() == WXK_LEFT) {
-        if(m_model.ToPtr(selectedItem)->IsExpanded()) {
+        if(row->IsExpanded()) {
             Collapse(selectedItem);
+            return true;
+        } else if(row->GetParent()) {
+            SelectItem(GetItemParent(selectedItem), true);
             return true;
         }
     } else if(event.GetKeyCode() == WXK_RIGHT) {
-        if(!m_model.ToPtr(selectedItem)->IsExpanded()) {
+        if(!row->IsExpanded()) {
             Expand(selectedItem);
+            return true;
+        } else if(row->GetChildrenCount(false)) {
+            // this item has children, select the first child
+            wxTreeItemIdValue cookie;
+            SelectItem(GetFirstChild(selectedItem, cookie), true);
             return true;
         }
     } else if(event.GetKeyCode() == WXK_RETURN || event.GetKeyCode() == WXK_NUMPAD_ENTER) {
@@ -1221,4 +1240,25 @@ void clTreeCtrl::SetImageList(wxImageList* images)
     clControlWithItems::SetImageList(images);
     DoBitmapAdded();
     Refresh();
+}
+
+void clTreeCtrl::LineUp() { ScrollRows(1, wxUP); }
+
+void clTreeCtrl::LineDown() { ScrollRows(1, wxDOWN); }
+
+void clTreeCtrl::PageDown() { ScrollRows(GetNumLineCanFitOnScreen(), wxDOWN); }
+
+void clTreeCtrl::PageUp() { ScrollRows(GetNumLineCanFitOnScreen(), wxUP); }
+
+void clTreeCtrl::SetDefaultFont(const wxFont& font)
+{
+    m_defaultFont = font;
+    UpdateLineHeight();
+    Refresh();
+}
+
+wxFont clTreeCtrl::GetDefaultFont() const
+{
+    if(m_defaultFont.IsOk()) { return m_defaultFont; }
+    return clScrolledPanel::GetDefaultFont();
 }

@@ -1,12 +1,12 @@
 #include "clTabRendererGTK3.h"
 
 #include "ColoursAndFontsManager.h"
+#include "clSystemSettings.h"
 #include "drawingutils.h"
 #include "editor_config.h"
 #include <wx/dcmemory.h>
 #include <wx/font.h>
 #include <wx/settings.h>
-#include "clSystemSettings.h"
 
 #define DRAW_LINE(__p1, __p2) \
     dc.DrawLine(__p1, __p2);  \
@@ -14,8 +14,8 @@
     dc.DrawLine(__p1, __p2);  \
     dc.DrawLine(__p1, __p2);
 
-clTabRendererGTK3::clTabRendererGTK3()
-    : clTabRenderer("GTK3")
+clTabRendererGTK3::clTabRendererGTK3(const wxWindow* parent)
+    : clTabRenderer("GTK3", parent)
 {
 #ifdef __WXGTK__
     bottomAreaHeight = 0;
@@ -26,7 +26,7 @@ clTabRendererGTK3::clTabRendererGTK3()
     smallCurveWidth = 0;
     overlapWidth = 0;
     verticalOverlapWidth = 0;
-    //xSpacer = 15;
+    // xSpacer = 15;
 }
 
 clTabRendererGTK3::~clTabRendererGTK3() {}
@@ -74,11 +74,9 @@ void clTabRendererGTK3::Draw(wxWindow* parent, wxDC& dc, wxDC& fontDC, const clT
             DrawingUtils::TruncateText(tabInfo.m_label, newSize, dc, label);
         }
     }
-
+    if(tabInfo.IsActive()) { dc.SetTextForeground(colours.markerColour); }
     fontDC.DrawText(label, tabInfo.m_textX + rr.GetX(), tabInfo.m_textY + rr.GetY());
-    if(style & kNotebook_CloseButtonOnActiveTab) {
-        DrawButton(parent, dc, tabInfo, colours, tabInfo.IsActive() ? buttonState : eButtonState::kDisabled);
-    }
+    if(style & kNotebook_CloseButtonOnActiveTab) { DrawButton(parent, dc, tabInfo, colours, buttonState); }
     if(tabInfo.IsActive()) { DrawMarker(dc, tabInfo, colours, style | kNotebook_UnderlineActiveTab); }
 }
 

@@ -1,11 +1,11 @@
 #include "clTabRendererClassic.h"
 
+#include "clColours.h"
+#include "clSystemSettings.h"
 #include "drawingutils.h"
 #include <wx/dcmemory.h>
 #include <wx/font.h>
 #include <wx/settings.h>
-#include "clSystemSettings.h"
-#include "clColours.h"
 
 #define DRAW_LINE(__p1, __p2) \
     dc.DrawLine(__p1, __p2);  \
@@ -13,8 +13,8 @@
     dc.DrawLine(__p1, __p2);  \
     dc.DrawLine(__p1, __p2);
 
-clTabRendererClassic::clTabRendererClassic()
-    : clTabRenderer("MINIMAL")
+clTabRendererClassic::clTabRendererClassic(const wxWindow* parent)
+    : clTabRenderer("MINIMAL", parent)
 {
     bottomAreaHeight = 0;
     smallCurveWidth = 0;
@@ -82,7 +82,7 @@ void clTabRendererClassic::Draw(wxWindow* parent, wxDC& dc, wxDC& fontDC, const 
     if(isDark && !tabInfo.IsActive()) { bgColour = bgColour.ChangeLightness(105); }
 
     wxFont font = GetTabFont(false);
-    fontDC.SetTextForeground(tabInfo.IsActive() ? colours.activeTabTextColour : colours.inactiveTabTextColour);
+    fontDC.SetTextForeground(tabInfo.IsActive() ? colours.markerColour : colours.inactiveTabTextColour);
     fontDC.SetFont(font);
 
     // Draw the tab rectangle
@@ -118,9 +118,7 @@ void clTabRendererClassic::Draw(wxWindow* parent, wxDC& dc, wxDC& fontDC, const 
     }
 
     fontDC.DrawText(label, tabInfo.m_textX + rr.GetX(), tabInfo.m_textY + rr.GetY());
-    if(style & kNotebook_CloseButtonOnActiveTab) {
-        DrawButton(parent, dc, tabInfo, colours, tabInfo.IsActive() ? buttonState : eButtonState::kDisabled);
-    }
+    if(style & kNotebook_CloseButtonOnActiveTab) { DrawButton(parent, dc, tabInfo, colours, buttonState); }
 }
 
 void clTabRendererClassic::DrawBottomRect(wxWindow* parent, clTabInfo::Ptr_t tabInfo, const wxRect& clientRect,

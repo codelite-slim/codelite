@@ -12,6 +12,9 @@
 #include "asyncprocess.h"
 #include "clFileSystemWorkspaceConfig.hpp"
 #include "clRemoteBuilder.hpp"
+#include "clDebuggerTerminal.h"
+#include "compiler.h"
+#include "clConsoleBase.h"
 
 class clFileSystemWorkspaceView;
 class WXDLLIMPEXP_SDK clFileSystemWorkspace : public IWorkspace
@@ -22,23 +25,32 @@ class WXDLLIMPEXP_SDK clFileSystemWorkspace : public IWorkspace
     bool m_showWelcomePage = false;
     bool m_dummy = true;
     IProcess* m_buildProcess = nullptr;
-    IProcess* m_execProcess = nullptr;
     clFileSystemWorkspaceSettings m_settings;
     clFileSystemWorkspaceView* m_view = nullptr;
     bool m_initialized = false;
     std::unordered_map<int, wxString> m_buildTargetMenuIdToName;
     clRemoteBuilder::Ptr_t m_remoteBuilder;
-
+    clDebuggerTerminalPOSIX m_debuggerTerminal;
+    int m_execPID = wxNOT_FOUND;
+    
 protected:
     void CacheFiles(bool force = false);
     wxString CompileFlagsAsString(const wxArrayString& arr) const;
     wxString GetTargetCommand(const wxString& target) const;
     void DoPrintBuildMessage(const wxString& message);
     clEnvList_t GetEnvList();
-
+    CompilerPtr GetCompiler();
+    
+    /**
+     * @brief return the executable to run + args
+     * this method also expands all macros/env variables
+     */
+    void GetExecutable(wxString& exe, wxString& args);
+    
     //===--------------------------
     // Event handlers
     //===--------------------------
+    void OnExecProcessTerminated(clProcessEvent& event);
     void OnBuildStarting(clBuildEvent& event);
     void OnBuildEnded(clBuildEvent& event);
     void OnIsBuildInProgress(clBuildEvent& event);
@@ -62,7 +74,8 @@ protected:
     void OnMenuCustomTarget(wxCommandEvent& event);
     void OnFileSaved(clCommandEvent& event);
     void OnSourceControlPulled(clSourceControlEvent& event);
-
+    void OnDebug(clDebugEvent& event);
+    
 protected:
     bool Load(const wxFileName& file);
     void DoOpen();

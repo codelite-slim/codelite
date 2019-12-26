@@ -7,7 +7,11 @@
 #include "clToolBarSpacer.h"
 #include "clToolBarStretchableSpace.h"
 #include "clToolBarToggleButton.h"
+#include "cl_config.h"
+#include "codelite_events.h"
 #include "drawingutils.h"
+#include "event_notifier.h"
+#include "globals.h"
 #include <algorithm>
 #include <wx/dcbuffer.h>
 #include <wx/dcmemory.h>
@@ -15,9 +19,6 @@
 #include <wx/renderer.h>
 #include <wx/settings.h>
 #include <wx/xrc/xmlres.h>
-#include "event_notifier.h"
-#include "codelite_events.h"
-#include "cl_config.h"
 
 wxDEFINE_EVENT(wxEVT_TOOLBAR_CUSTOMISE, wxCommandEvent);
 clToolBar::clToolBar(wxWindow* parent, wxWindowID winid, const wxPoint& pos, const wxSize& size, long style,
@@ -26,6 +27,7 @@ clToolBar::clToolBar(wxWindow* parent, wxWindowID winid, const wxPoint& pos, con
     , m_popupShown(false)
     , m_flags(0)
 {
+    SetGroupSpacing(30);
     m_bgColour = DrawingUtils::GetPanelBgColour();
     m_useCustomBgColour = clConfig::Get().Read("UseCustomBaseColour", m_useCustomBgColour);
     if(m_useCustomBgColour) { m_bgColour = clConfig::Get().Read("BaseColour", m_bgColour); }
@@ -91,22 +93,22 @@ void clToolBar::OnPaint(wxPaintEvent& event)
     clientRect.Inflate(1);
 #endif
 
-	wxColour tbBgColour;
-    if(m_useCustomBgColour) {
+    wxColour tbBgColour;
+    if(m_useCustomBgColour && false) {
         dc.SetBrush(m_bgColour);
         dc.SetPen(m_bgColour);
         dc.DrawRectangle(clientRect);
         clientRect.SetWidth(clientRect.GetWidth() - CL_TOOL_BAR_CHEVRON_SIZE);
         dc.DrawRectangle(clientRect);
-		tbBgColour = m_bgColour;
+        tbBgColour = m_bgColour;
     } else {
         DrawingUtils::FillMenuBarBgColour(gcdc, clientRect, HasFlag(kMiniToolBar));
         clientRect.SetWidth(clientRect.GetWidth() - CL_TOOL_BAR_CHEVRON_SIZE);
         DrawingUtils::FillMenuBarBgColour(gcdc, clientRect, HasFlag(kMiniToolBar));
-		tbBgColour = DrawingUtils::GetMenuBarBgColour(HasFlag(kMiniToolBar));
+        tbBgColour = DrawingUtils::GetMenuBarBgColour(HasFlag(kMiniToolBar));
     }
 
-	// Prepare for drawings
+    // Prepare for drawings
     std::vector<ToolVect_t> groups;
     PrepareForDrawings(gcdc, groups, clientRect);
 
@@ -127,9 +129,9 @@ void clToolBar::OnPaint(wxPaintEvent& event)
         m_chevronRect = chevronRect;
     }
 
-	tbBgColour = tbBgColour.ChangeLightness(DrawingUtils::IsDark(tbBgColour) ? 50 : 200);
-	gcdc.SetPen(tbBgColour);
-	gcdc.DrawLine(GetClientRect().GetLeftBottom(), GetClientRect().GetRightBottom());
+    tbBgColour = tbBgColour.ChangeLightness(70);
+    gcdc.SetPen(tbBgColour);
+    gcdc.DrawLine(GetClientRect().GetLeftBottom(), GetClientRect().GetRightBottom());
 }
 
 void clToolBar::RenderGroup(int& xx, const clToolBar::ToolVect_t& G, wxDC& gcdc, bool isLastGroup)
@@ -143,28 +145,6 @@ void clToolBar::RenderGroup(int& xx, const clToolBar::ToolVect_t& G, wxDC& gcdc,
         wxSize buttonSize = button->CalculateSize(gcdc);
         groupWidth += buttonSize.GetWidth();
     });
-
-    //    if(!isLastGroup) {
-    //        wxRect bgRect = wxRect(wxPoint(xx, 0), wxSize(groupWidth, clientRect.GetHeight()));
-    //#ifdef __WXOSX__
-    //        bgRect.SetHeight(bgRect.GetHeight() - 5);
-    //        bgRect = bgRect.CenterIn(clientRect, wxVERTICAL);
-    //#endif
-    //        bgRect.SetWidth(bgRect.GetWidth() + GetGroupSpacing() / 2);
-    //        {
-    //            wxColour lineColour = DrawingUtils::GetMenuBarBgColour(IsMiniToolBar());
-    //            lineColour = lineColour.ChangeLightness(90);
-    //            gcdc.SetPen(lineColour);
-    //            gcdc.DrawLine(bgRect.GetTopRight(), bgRect.GetBottomRight());
-    //        }
-    //        bgRect.SetWidth(bgRect.GetWidth() + 1);
-    //        {
-    //            wxColour lineColour = DrawingUtils::GetMenuBarBgColour(IsMiniToolBar());
-    //            lineColour = lineColour.ChangeLightness(110);
-    //            gcdc.SetPen(lineColour);
-    //            gcdc.DrawLine(bgRect.GetTopRight(), bgRect.GetBottomRight());
-    //        }
-    //    }
 
     // Now draw the buttons
     std::for_each(G.begin(), G.end(), [&](clToolBarButtonBase* button) {
@@ -308,7 +288,7 @@ void clToolBar::OnMotion(wxMouseEvent& event)
             button->SetHover(false);
         }
     }
-    if (!tooltipValid) { UnsetToolTip(); }
+    if(!tooltipValid) { UnsetToolTip(); }
     if(refreshNeeded) { Refresh(); }
 }
 
@@ -497,14 +477,15 @@ void clToolBar::DoShowOverflowMenu()
     if(IsCustomisationEnabled()) {
         if(menu.GetMenuItemCount() && !last_was_separator) { menu.AppendSeparator(); }
         menu.Append(XRCID("customise_toolbar"), _("Customise..."));
-        menu.Bind(wxEVT_MENU,
-                  [&](wxCommandEvent& event) {
-                      wxUnusedVar(event);
-                      wxCommandEvent evtCustomise(wxEVT_TOOLBAR_CUSTOMISE);
-                      evtCustomise.SetEventObject(this);
-                      GetEventHandler()->AddPendingEvent(evtCustomise);
-                  },
-                  XRCID("customise_toolbar"));
+        menu.Bind(
+            wxEVT_MENU,
+            [&](wxCommandEvent& event) {
+                wxUnusedVar(event);
+                wxCommandEvent evtCustomise(wxEVT_TOOLBAR_CUSTOMISE);
+                evtCustomise.SetEventObject(this);
+                GetEventHandler()->AddPendingEvent(evtCustomise);
+            },
+            XRCID("customise_toolbar"));
     }
     // Show the menu
     m_popupShown = true;
@@ -619,9 +600,23 @@ void clToolBar::PrepareForDrawings(wxDC& dc, std::vector<ToolVect_t>& G, const w
     }
 }
 
-int clToolBar::GetXSpacer() const { return HasFlag(kMiniToolBar) ? 3 : 8; }
+int clToolBar::GetXSpacer() const
+{
+    int spacer = HasFlag(kMiniToolBar) ? 3 : 8;
+#if wxCHECK_VERSION(3, 1, 0)
+    spacer = FromDIP(spacer);
+#endif
+    return spacer;
+}
 
-int clToolBar::GetYSpacer() const { return HasFlag(kMiniToolBar) ? 4 : 10; }
+int clToolBar::GetYSpacer() const
+{
+    int spacer = HasFlag(kMiniToolBar) ? 6 : 10;
+#if wxCHECK_VERSION(3, 1, 0)
+    spacer = FromDIP(spacer);
+#endif
+    return spacer;
+}
 
 void clToolBar::OnColoursChanged(clCommandEvent& event)
 {
@@ -631,3 +626,5 @@ void clToolBar::OnColoursChanged(clCommandEvent& event)
     if(m_useCustomBgColour) { m_bgColour = clConfig::Get().Read("BaseColour", m_bgColour); }
     Refresh();
 }
+
+void clToolBar::SetGroupSpacing(int spacing) { m_groupSpacing = clGetSize(spacing, this); }

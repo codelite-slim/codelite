@@ -27,6 +27,7 @@
 #include "clAuiMainNotebookTabArt.h"
 #include "clFileOrFolderDropTarget.h"
 #include "clImageViewer.h"
+#include "clThemeUpdater.h"
 #include "close_all_dlg.h"
 #include "ctags_manager.h"
 #include "editor_config.h"
@@ -46,11 +47,11 @@
 #include "theme_handler.h"
 #include <algorithm>
 #include <imanager.h>
+#include <unordered_map>
 #include <wx/aui/framemanager.h>
 #include <wx/regex.h>
 #include <wx/wupdlock.h>
 #include <wx/xrc/xmlres.h>
-#include "clThemeUpdater.h"
 
 MainBook::MainBook(wxWindow* parent)
     : wxPanel(parent)
@@ -700,7 +701,7 @@ bool MainBook::SelectPage(wxWindow* win)
     return DoSelectPage(win);
 }
 
-bool MainBook::UserSelectFiles(std::vector<std::pair<wxFileName, bool> >& files, const wxString& title,
+bool MainBook::UserSelectFiles(std::vector<std::pair<wxFileName, bool>>& files, const wxString& title,
                                const wxString& caption, bool cancellable)
 {
     if(files.empty()) return true;
@@ -720,7 +721,7 @@ bool MainBook::SaveAll(bool askUser, bool includeUntitled)
     clEditor::Vec_t editors;
     GetAllEditors(editors, MainBook::kGetAll_IncludeDetached);
 
-    std::vector<std::pair<wxFileName, bool> > files;
+    std::vector<std::pair<wxFileName, bool>> files;
     size_t n = 0;
     for(size_t i = 0; i < editors.size(); i++) {
         if(!editors[i]->GetModify()) continue;
@@ -764,7 +765,7 @@ void MainBook::ReloadExternallyModified(bool prompt)
     time_t workspaceModifiedTimeBefore = clCxxWorkspaceST::Get()->GetFileLastModifiedTime();
 
     // filter list of editors for any whose files have been modified
-    std::vector<std::pair<wxFileName, bool> > files;
+    std::vector<std::pair<wxFileName, bool>> files;
     size_t n = 0;
     for(size_t i = 0; i < editors.size(); i++) {
         time_t diskTime = editors[i]->GetFileLastModifiedTime();
@@ -865,41 +866,64 @@ bool MainBook::ClosePage(wxWindow* page)
 
 bool MainBook::CloseAllButThis(wxWindow* page)
 {
-    wxString text;
+    wxBusyCursor bc;
+    clEditor::Vec_t editors;
+    GetAllEditors(editors, kGetAll_IncludeDetached);
 
-    clWindowUpdateLocker locker(this);
-
-    int pos = m_book->GetPageIndex(page);
-    if(pos != wxNOT_FOUND) {
-        text = m_book->GetPageText(pos);
-        m_book->RemovePage(pos);
+    std::vector<std::pair<wxFileName, bool>> files;
+    std::unordered_map<wxString, clEditor*> M;
+    for(clEditor* editor : editors) {
+        if(editor->IsModified()) {
+            const wxFileName& fn = editor->GetFileName();
+            files.push_back({ fn, true });
+            M[fn.GetFullPath()] = editor;
+        }
     }
 
-    bool res = CloseAll(true);
-    if(pos != wxNOT_FOUND) { m_book->AddPage(page, text, true); }
-    return res;
+    if(!UserSelectFiles(files, _("Save Modified Files"),
+                        _("Some files are modified.\nChoose the files you would like to save."))) {
+        return false;
+    }
+
+    for(const auto& p : files) {
+        wxString fullpath = p.first.GetFullPath();
+        if(p.second) {
+            M[fullpath]->SaveFile();
+        } else {
+            M[fullpath]->SetSavePoint();
+        }
+    }
+
+    for(clEditor* editor : editors) {
+        if(editor->GetCtrl() == page) { continue; }
+        ClosePage(editor, false);
+    }
+    return true;
 }
 
 bool MainBook::CloseAll(bool cancellable)
 {
+    wxBusyCursor bc;
     clEditor::Vec_t editors;
     GetAllEditors(editors, kGetAll_IncludeDetached);
 
     // filter list of editors for any that need to be saved
-    std::vector<std::pair<wxFileName, bool> > files;
+    std::vector<std::pair<wxFileName, bool>> files;
     size_t n = 0;
-    for(size_t i = 0; i < editors.size(); i++) {
+    for(size_t i = 0; i < editors.size(); ++i) {
         if(editors[i]->GetModify()) {
-            files.push_back(std::make_pair(editors[i]->GetFileName(), true));
+            files.push_back({ editors[i]->GetFileName(), true });
             editors[n++] = editors[i];
         }
     }
     editors.resize(n);
 
     if(!UserSelectFiles(files, _("Save Modified Files"),
-                        _("Some files are modified.\nChoose the files you would like to save."), cancellable))
+                        _("Some files are modified.\nChoose the files you would like to save."), cancellable)) {
         return false;
+    }
 
+    // Files selected to be save, we save. The rest we mark as 'unmodified'
     for(size_t i = 0; i < files.size(); i++) {
         if(files[i].second) {
             editors[i]->SaveFile();
@@ -1099,33 +1123,26 @@ void MainBook::DoUpdateNotebookTheme()
 {
     size_t initialStyle = m_book->GetStyle();
     size_t style = m_book->GetStyle();
-    if(EditorConfigST::Get()->GetOptions()->IsTabColourMatchesTheme()) {
-        // Update theme
-        IEditor* editor = GetActiveEditor();
-        if(editor) {
-            wxColour bgColour = editor->GetCtrl()->StyleGetBackground(0);
-            if(DrawingUtils::IsDark(bgColour) && !(m_book->GetStyle() & kNotebook_DarkTabs)) {
-                style &= ~kNotebook_LightTabs;
-                style |= kNotebook_DarkTabs;
-            } else if(!DrawingUtils::IsDark(bgColour) && !(m_book->GetStyle() & kNotebook_LightTabs)) {
-                style &= ~kNotebook_DarkTabs;
-                style |= kNotebook_LightTabs;
-            }
+    
+    // Update colours
+    IEditor* editor = GetActiveEditor();
+    if(editor) {
+        wxColour bgColour = editor->GetCtrl()->StyleGetBackground(0);
+        if(DrawingUtils::IsDark(bgColour) && !(m_book->GetStyle() & kNotebook_DarkTabs)) {
+            style &= ~kNotebook_LightTabs;
+            style |= kNotebook_DarkTabs;
+        } else if(!DrawingUtils::IsDark(bgColour) && !(m_book->GetStyle() & kNotebook_LightTabs)) {
+            style &= ~kNotebook_DarkTabs;
+            style |= kNotebook_LightTabs;
         }
-    } else if(EditorConfigST::Get()->GetOptions()->IsTabColourDark()) {
-        style &= ~kNotebook_LightTabs;
-        style |= kNotebook_DarkTabs;
-    } else {
-        style &= ~kNotebook_DarkTabs;
-        style |= kNotebook_LightTabs;
     }
-
+    
+    // Close button
     if(!EditorConfigST::Get()->GetOptions()->IsTabHasXButton()) {
         style &= ~(kNotebook_CloseButtonOnActiveTab | kNotebook_CloseButtonOnActiveTabFireEvent);
     } else {
         style |= (kNotebook_CloseButtonOnActiveTab | kNotebook_CloseButtonOnActiveTabFireEvent);
     }
-
     if(initialStyle != style) { m_book->SetStyle(style); }
 }
 
@@ -1165,9 +1182,7 @@ void MainBook::OnInitDone(wxCommandEvent& e)
 {
     e.Skip();
     // Show the welcome page, but only if there are no open files
-    if(GetPageCount() == 0) {
-        ShowWelcomePage(true);
-    }
+    if(GetPageCount() == 0) { ShowWelcomePage(true); }
 }
 
 wxWindow* MainBook::GetPage(size_t page) { return m_book->GetPage(page); }
@@ -1298,11 +1313,11 @@ void MainBook::ShowTabBar(bool b) { wxUnusedVar(b); }
 
 void MainBook::CloseTabsToTheRight(wxWindow* win)
 {
-    wxString text;
-
+    wxBusyCursor bc;
     // clWindowUpdateLocker locker(this);
 
     // Get list of tabs to close
+    wxString text;
     std::vector<wxWindow*> windows;
     bool currentWinFound(false);
     for(size_t i = 0; i < m_book->GetPageCount(); ++i) {
@@ -1519,10 +1534,7 @@ void MainBook::OnNavigationBarMenuSelectionMade(clCommandEvent& e)
     editor->FindAndSelect(tag->GetPattern(), tag->GetName(), editor->PosFromLine(tag->GetLine() - 1), nullptr);
 }
 
-void MainBook::OnSettingsChanged(wxCommandEvent& e)
-{
-    e.Skip();
-}
+void MainBook::OnSettingsChanged(wxCommandEvent& e) { e.Skip(); }
 
 clEditor* MainBook::OpenFile(const BrowseRecord& rec)
 {
@@ -1588,6 +1600,10 @@ void MainBook::DoShowWindow(wxWindow* win, bool show)
 
 void MainBook::ShowWelcomePage(bool show)
 {
+    if(!m_welcomePage) { return; }
+    if(show && m_welcomePage->IsShown()) { return; }
+    if(!show && !m_welcomePage->IsShown()) { return; }
+
     wxWindowUpdateLocker locker(this);
     DoShowWindow(m_welcomePage, show);
     DoShowWindow(m_book, !show);
@@ -1640,4 +1656,10 @@ void MainBook::SetFindBar(QuickFindBar* findBar)
     m_findBar = findBar;
     EventNotifier::Get()->Bind(wxEVT_ALL_EDITORS_CLOSED, &MainBook::OnAllEditorClosed, this);
     EventNotifier::Get()->Bind(wxEVT_ACTIVE_EDITOR_CHANGED, &MainBook::OnEditorChanged, this);
+}
+
+void MainBook::ShowQuickBarToolBar(bool s)
+{
+    wxUnusedVar(s);
+    if(m_findBar) { m_findBar->ShowToolBarOnly(); }
 }

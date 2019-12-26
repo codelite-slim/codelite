@@ -25,9 +25,9 @@
 #ifndef LITEEDITOR_APP_H
 #define LITEEDITOR_APP_H
 
+#include "clPersistenceManager.h"
 #include "frame.h"
 #include <set>
-#include "clPersistenceManager.h"
 
 class wxSplashScreen;
 class wxSingleInstanceChecker;

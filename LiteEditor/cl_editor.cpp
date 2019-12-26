@@ -24,12 +24,15 @@
 //////////////////////////////////////////////////////////////////////////////
 
 #include "ColoursAndFontsManager.h"
+#include "ServiceProviderManager.h"
 #include "addincludefiledlg.h"
+#include "bitmap_loader.h"
 #include "bookmark_manager.h"
 #include "breakpointdlg.h"
 #include "buildtabsettingsdata.h"
 #include "cc_box_tip_window.h"
 #include "clEditorStateLocker.h"
+#include "clFileSystemWorkspace.hpp"
 #include "clPrintout.h"
 #include "clResizableTooltip.h"
 #include "clSTCLineKeeper.h"
@@ -55,6 +58,7 @@
 #include "findresultstab.h"
 #include "frame.h"
 #include "globals.h"
+#include "imanager.h"
 #include "job.h"
 #include "jobqueue.h"
 #include "lexer_configuration.h"
@@ -79,10 +83,6 @@
 #include <wx/regex.h>
 #include <wx/richtooltip.h> // wxRichToolTip
 #include <wx/wupdlock.h>
-#include "imanager.h"
-#include "bitmap_loader.h"
-#include "ServiceProviderManager.h"
-#include "clFileSystemWorkspace.hpp"
 //#include "clFileOrFolderDropTarget.h"
 
 #if wxUSE_PRINTING_ARCHITECTURE
@@ -362,7 +362,7 @@ clEditor::clEditor(wxWindow* parent)
     Bind(wxEVT_FRD_CLOSE, &clEditor::OnFindDialog, this);
     Bind(wxEVT_FRD_CLEARBOOKMARKS, &clEditor::OnFindDialog, this);
     Bind(wxCMD_EVENT_REMOVE_MATCH_INDICATOR, &clEditor::OnRemoveMatchInidicator, this);
-
+    Bind(wxEVT_STC_ZOOM, &clEditor::OnZoom, this);
     DoUpdateOptions();
     PreferencesChanged();
     EventNotifier::Get()->Bind(wxEVT_EDITOR_CONFIG_CHANGED, &clEditor::OnEditorConfigChanged, this);
@@ -605,7 +605,10 @@ void clEditor::SetProperties()
     caretJumps = 0;
     SetYCaretPolicy(caretStrict | caretSlop | caretEven | caretJumps, caretZone);
 
-    SetCaretWidth(options->GetCaretWidth());
+    // Set the caret width
+    int caretWidth = clConfig::Get().Read("editor/caret_width", 2);
+    caretWidth = ::clGetSize(caretWidth, this);
+    SetCaretWidth(caretWidth);
     SetCaretPeriod(options->GetCaretBlinkPeriod());
     SetMarginLeft(1);
 
@@ -614,7 +617,9 @@ void clEditor::SetProperties()
     SetCaretLineBackground(options->GetCaretLineColour());
     SetCaretLineBackAlpha(options->GetCaretLineAlpha());
 
-    SetFoldFlags(options->GetUnderlineFoldLine() ? 16 : 0);
+    SetFoldFlags(options->GetUnderlineFoldLine()
+                     ? wxSTC_FOLDFLAG_LINEAFTER_CONTRACTED | wxSTC_FOLDFLAG_LINEBEFORE_CONTRACTED
+                     : 0);
     SetEndAtLastLine(!options->GetScrollBeyondLastLine());
 
     //------------------------------------------
@@ -640,31 +645,35 @@ void clEditor::SetProperties()
     SetMarginMask(EDIT_TRACKER_MARGIN_ID, 0);
 
     // Separators
+#if wxCHECK_VERSION(3, 1, 0)
+    SetMarginType(SYMBOLS_MARGIN_SEP_ID, wxSTC_MARGIN_COLOUR);
+    SetMarginMask(SYMBOLS_MARGIN_SEP_ID, 0);
+    SetMarginWidth(SYMBOLS_MARGIN_SEP_ID, clGetSize(1, this));
+    wxColour bgColour = StyleGetBackground(0);
+    SetMarginBackground(SYMBOLS_MARGIN_SEP_ID,
+                        DrawingUtils::IsDark(bgColour) ? bgColour.ChangeLightness(120) : bgColour.ChangeLightness(60));
+#else
     SetMarginType(SYMBOLS_MARGIN_SEP_ID, wxSTC_MARGIN_FORE);
     SetMarginMask(SYMBOLS_MARGIN_SEP_ID, 0);
-
     // Show the separator margin only if the fold margin is hidden
     // (otherwise the fold margin is the separator)
     SetMarginWidth(SYMBOLS_MARGIN_SEP_ID,
                    (GetLexer() == wxSTC_LEX_CPP && FileExtManager::IsCxxFile(GetFileName())) ? 1 : 0);
-
+#endif
     // Fold margin - allow only folder symbols to display
     SetMarginMask(FOLD_MARGIN_ID, wxSTC_MASK_FOLDERS);
 
     // Set margins' width
-    SetMarginWidth(SYMBOLS_MARGIN_ID, options->GetDisplayBookmarkMargin() ? 16 : 0); // Symbol margin
+    SetMarginWidth(SYMBOLS_MARGIN_ID, options->GetDisplayBookmarkMargin() ? clGetSize(16, this) : 0); // Symbol margin
 
     // allow everything except for the folding symbols
     SetMarginMask(SYMBOLS_MARGIN_ID, ~(wxSTC_MASK_FOLDERS));
 
-    // Line number margin
-    int pixelWidth = 4 + 5 * TextWidth(wxSTC_STYLE_LINENUMBER, wxT("9"));
-
     // Show number margin according to settings.
-    SetMarginWidth(NUMBER_MARGIN_ID, options->GetDisplayLineNumbers() ? pixelWidth : 0);
+    UpdateLineNumberMarginWidth();
 
     // Show the fold margin
-    SetMarginWidth(FOLD_MARGIN_ID, options->GetDisplayFoldMargin() ? 16 : 0); // Fold margin
+    SetMarginWidth(FOLD_MARGIN_ID, options->GetDisplayFoldMargin() ? clGetSize(16, this) : 0); // Fold margin
 
     // Mark fold margin & symbols margins as sensetive
     SetMarginSensitive(FOLD_MARGIN_ID, true);
@@ -954,6 +963,7 @@ void clEditor::OnSavePoint(wxStyledTextEvent& event)
 
 void clEditor::OnCharAdded(wxStyledTextEvent& event)
 {
+    bool hasSingleCaret = (GetSelections() == 1);
     OptionsConfigPtr options = GetOptions();
     if(m_prevSelectionInfo.IsOk()) {
         if(event.GetKey() == '"' && options->IsWrapSelectionWithQuotes()) {
@@ -972,14 +982,15 @@ void clEditor::OnCharAdded(wxStyledTextEvent& event)
     }
 
     // reset the flag
+
     m_prevSelectionInfo.Clear();
-    bool addClosingBrace = m_autoAddNormalBraces && (GetSelections() == 1);
-    bool addClosingDoubleQuotes = options->GetAutoCompleteDoubleQuotes() && (GetSelections() == 1);
+    bool addClosingBrace = m_autoAddNormalBraces && hasSingleCaret;
+    bool addClosingDoubleQuotes = options->GetAutoCompleteDoubleQuotes() && hasSingleCaret;
     int pos = GetCurrentPos();
     bool canShowCompletionBox(true);
     // make sure line is visible
     int curLine = LineFromPosition(pos);
-    if(!GetFoldExpanded(curLine)) { ToggleFold(curLine); }
+    if(!GetFoldExpanded(curLine)) { DoToggleFold(curLine, "..."); }
 
     bool bJustAddedIndicator = false;
     int nextChar = SafeGetChar(pos), prevChar = SafeGetChar(pos - 2);
@@ -987,29 +998,29 @@ void clEditor::OnCharAdded(wxStyledTextEvent& event)
     //-------------------------------------
     // Smart quotes management
     //-------------------------------------
-    if(addClosingDoubleQuotes && (event.GetKey() == '"' || event.GetKey() == '\'') &&
-       event.GetKey() == GetCharAt(pos)) {
-        CharRight();
-        DeleteBack();
-    } else if(addClosingDoubleQuotes && !wxIsalnum(nextChar) && !wxIsalnum(prevChar)) {
-        // add complete quotes; but don't if the next char is alnum,
-        // which is annoying if you're trying to retrofit quotes around a string!
-        // Also not if the previous char is alnum: it's more likely (especially in non-code editors)
-        // that someone is trying to type _don't_ than it's a burning desire to write _don''_
-        if(event.GetKey() == wxT('"') && !m_context->IsCommentOrString(pos)) {
-            InsertText(pos, wxT("\""));
-            SetIndicatorCurrent(MATCH_INDICATOR);
-            IndicatorFillRange(pos, 1);
-            bJustAddedIndicator = true;
+    if(addClosingDoubleQuotes) {
+        if((event.GetKey() == '"' || event.GetKey() == '\'') && event.GetKey() == GetCharAt(pos)) {
+            CharRight();
+            DeleteBack();
+        } else if(!wxIsalnum(nextChar) && !wxIsalnum(prevChar)) {
+            // add complete quotes; but don't if the next char is alnum,
+            // which is annoying if you're trying to retrofit quotes around a string!
+            // Also not if the previous char is alnum: it's more likely (especially in non-code editors)
+            // that someone is trying to type _don't_ than it's a burning desire to write _don''_
+            if(event.GetKey() == wxT('"') && !m_context->IsCommentOrString(pos)) {
+                InsertText(pos, wxT("\""));
+                SetIndicatorCurrent(MATCH_INDICATOR);
+                IndicatorFillRange(pos, 1);
+                bJustAddedIndicator = true;
 
-        } else if(event.GetKey() == wxT('\'') && !m_context->IsCommentOrString(pos)) {
-            InsertText(pos, wxT("'"));
-            SetIndicatorCurrent(MATCH_INDICATOR);
-            IndicatorFillRange(pos, 1);
-            bJustAddedIndicator = true;
+            } else if(event.GetKey() == wxT('\'') && !m_context->IsCommentOrString(pos)) {
+                InsertText(pos, wxT("'"));
+                SetIndicatorCurrent(MATCH_INDICATOR);
+                IndicatorFillRange(pos, 1);
+                bJustAddedIndicator = true;
+            }
         }
     }
-
     //-------------------------------------
     // Smart quotes management
     //-------------------------------------
@@ -1369,7 +1380,7 @@ void clEditor::OnMarginClick(wxStyledTextEvent& event)
     case FOLD_MARGIN_ID:
         // fold margin
         {
-            ToggleFold(nLine);
+            DoToggleFold(nLine, "...");
 
             int caret_pos = GetCurrentPos();
             if(caret_pos != wxNOT_FOUND) {
@@ -1637,7 +1648,7 @@ void clEditor::UpdateBreakpoints()
     ManagerST::Get()->GetBreakpointsMgr()->DeleteAllBreakpointsByFileName(GetFileName().GetFullPath());
 
     // iterate over the array and update the breakpoint manager with updated line numbers for each breakpoint
-    std::map<int, std::vector<BreakpointInfo> >::iterator iter = m_breakpointsInfo.begin();
+    std::map<int, std::vector<BreakpointInfo>>::iterator iter = m_breakpointsInfo.begin();
     for(; iter != m_breakpointsInfo.end(); iter++) {
         int handle = iter->first;
         int line = MarkerLineFromHandle(handle);
@@ -2339,8 +2350,7 @@ void clEditor::ToggleCurrentFold()
 {
     int line = GetCurrentLine();
     if(line >= 0) {
-        ToggleFold(line);
-
+        DoToggleFold(line, "...");
         if(GetLineVisible(line) == false) {
             // the caret line is hidden, make sure the caret is visible
             while(line >= 0) {
@@ -2389,7 +2399,7 @@ void clEditor::ToggleAllFoldsInSelection()
     int startline = LineFromPos(selStart);
     int endline = LineFromPos(selEnd);
     if(startline == endline) {
-        ToggleFold(startline); // For a single-line selection just toggle
+        DoToggleFold(startline, "..."); // For a single-line selection just toggle
         return;
     }
     if(startline > endline) { wxSwap(startline, endline); }
@@ -2480,7 +2490,7 @@ void clEditor::FoldAll()
         if((level & wxSTC_FOLDLEVELHEADERFLAG) &&
            (expanded ? ((level & wxSTC_FOLDLEVELNUMBERMASK) == (wxSTC_FOLDLEVELBASE + SkipTopFold))
                      : ((level & wxSTC_FOLDLEVELNUMBERMASK) >= wxSTC_FOLDLEVELBASE))) {
-            if(GetFoldExpanded(line) == expanded) ToggleFold(line);
+            if(GetFoldExpanded(line) == expanded) DoToggleFold(line, "...");
         }
     }
 
@@ -2514,7 +2524,7 @@ void clEditor::ToggleTopmostFoldsInSelection()
     int startline = LineFromPos(selStart);
     int endline = LineFromPos(selEnd);
     if(startline == endline) {
-        ToggleFold(startline); // For a single-line selection just toggle
+        DoToggleFold(startline, "..."); // For a single-line selection just toggle
         return;
     }
     if(startline > endline) { wxSwap(startline, endline); }
@@ -2541,7 +2551,7 @@ void clEditor::ToggleTopmostFoldsInSelection()
     for(int line = startline; line < endline; ++line) {
         if(GetFoldLevel(line) & wxSTC_FOLDLEVELHEADERFLAG) {
             if((GetFoldLevel(line) & wxSTC_FOLDLEVELNUMBERMASK) == toplevel && GetFoldExpanded(line) == expanded) {
-                ToggleFold(line);
+                DoToggleFold(line, "...");
             }
         }
     }
@@ -2675,7 +2685,7 @@ bool clEditor::HasCompilerMarkers()
     return nFoundLine >= 0;
 }
 
-size_t clEditor::GetFindMarkers(std::vector<std::pair<int, wxString> >& bookmarksVector)
+size_t clEditor::GetFindMarkers(std::vector<std::pair<int, wxString>>& bookmarksVector)
 {
     int nPos = 0;
     int nFoundLine = LineFromPosition(nPos);
@@ -3019,6 +3029,7 @@ void clEditor::UpdateLineNumbers()
 
 void clEditor::OpenFile()
 {
+    wxBusyCursor bc;
     wxWindowUpdateLocker locker(this);
     SetReloadingFile(true);
 
@@ -3055,6 +3066,7 @@ void clEditor::OpenFile()
     // Update the editor properties
     DoUpdateOptions();
     SetProperties();
+    UpdateLineNumberMarginWidth();
     UpdateColours();
     SetEOL();
 
@@ -3251,7 +3263,12 @@ void clEditor::OnKeyDown(wxKeyEvent& event)
         for(int i = 0; i < GetSelections(); ++i) {
             int selStart = GetSelectionNStart(i);
             int selEnd = GetSelectionNEnd(i);
-            m_prevSelectionInfo.AddSelection(selStart, selEnd);
+            if(selEnd > selStart) {
+                m_prevSelectionInfo.AddSelection(selStart, selEnd);
+            } else {
+                m_prevSelectionInfo.Clear();
+                break;
+            }
         }
         m_prevSelectionInfo.Sort();
     }
@@ -4349,6 +4366,14 @@ void clEditor::OnChange(wxStyledTextEvent& event)
     bool isUndo = event.GetModificationType() & wxSTC_PERFORMED_UNDO;
     bool isRedo = event.GetModificationType() & wxSTC_PERFORMED_REDO;
 
+    int newLineCount = GetLineCount();
+    if(m_lastLineCount != newLineCount) {
+        int lastWidthCount = log10(m_lastLine) + 2;
+        int newWidthCount = log10(newLineCount) + 2;
+        m_lastLine = newLineCount;
+        if(newWidthCount != lastWidthCount) { UpdateLineNumberMarginWidth(); }
+    }
+
     // Remove any code completion annotations if we have some...
     if(m_hasCCAnnotation) {
         CallAfter(&clEditor::AnnotationClearAll);
@@ -4358,7 +4383,7 @@ void clEditor::OnChange(wxStyledTextEvent& event)
     // Notify about this editor being changed
     clCommandEvent eventMod(wxEVT_EDITOR_MODIFIED);
     eventMod.SetFileName(GetFileName().GetFullPath());
-    EventNotifier::Get()->AddPendingEvent(eventMod);
+    EventNotifier::Get()->QueueEvent(eventMod.Clone());
 
     if((m_autoAddNormalBraces && !m_disableSmartIndent) || GetOptions()->GetAutoCompleteDoubleQuotes()) {
         if((event.GetModificationType() & wxSTC_MOD_BEFOREDELETE) &&
@@ -4692,7 +4717,7 @@ void clEditor::SetLexerName(const wxString& lexerName) { SetSyntaxHighlight(lexe
 void clEditor::HighlightWord(StringHighlightOutput* highlightOutput)
 {
     // the search highlighter thread has completed the calculations, fetch the results and mark them in the editor
-    const std::vector<std::pair<int, int> >& matches = highlightOutput->matches;
+    const std::vector<std::pair<int, int>>& matches = highlightOutput->matches;
     SetIndicatorCurrent(MARKER_WORD_HIGHLIGHT);
 
     // clear the old markers
@@ -5012,7 +5037,7 @@ void clEditor::DoWrapPrevSelectionWithChars(wxChar first, wxChar last)
     ClearSelections();
 
     int charsAdded(0);
-    std::vector<std::pair<int, int> > selections;
+    std::vector<std::pair<int, int>> selections;
     for(size_t i = 0; i < m_prevSelectionInfo.GetCount(); ++i) {
         int startPos, endPos;
         m_prevSelectionInfo.At(i, startPos, endPos);
@@ -5350,8 +5375,12 @@ void clEditor::QuickAddNext()
         SetMainSelection(0);
     }
 
+    // Use the find flags of the quick find bar for this
+    int searchFlags = clMainFrame::Get()->GetMainBook()->GetFindBar()->m_searchFlags;
+    clMainFrame::Get()->GetMainBook()->ShowQuickBarToolBar(true);
+
     wxString findWhat = GetTextRange(start, end);
-    int where = this->FindText(end, GetLength(), findWhat, wxSTC_FIND_MATCHCASE);
+    int where = this->FindText(end, GetLength(), findWhat, searchFlags);
     if(where != wxNOT_FOUND) {
         AddSelection(where + findWhat.length(), where);
         CenterLineIfNeeded(LineFromPos(where));
@@ -5375,8 +5404,14 @@ void clEditor::QuickFindAll()
 
     int matches(0);
     int firstMatch(wxNOT_FOUND);
+
+    // Use the find flags of the quick find bar for this
+    int searchFlags = clMainFrame::Get()->GetMainBook()->GetFindBar()->m_searchFlags;
+    clMainFrame::Get()->GetMainBook()->ShowQuickBarToolBar(true);
+    CallAfter(&clEditor::SetFocus);
+
     // clWordCharslocker wcl(this);
-    int where = this->FindText(0, GetLength(), findWhat, wxSTC_FIND_MATCHCASE);
+    int where = this->FindText(0, GetLength(), findWhat, searchFlags);
     while(where != wxNOT_FOUND) {
         if(matches == 0) {
             firstMatch = where;
@@ -5388,7 +5423,7 @@ void clEditor::QuickFindAll()
             AddSelection(where + findWhat.length(), where);
         }
         ++matches;
-        where = this->FindText(where + findWhat.length(), GetLength(), findWhat, wxSTC_FIND_MATCHCASE);
+        where = this->FindText(where + findWhat.length(), GetLength(), findWhat, searchFlags);
     }
     wxString message;
     message << _("Found and selected ") << GetSelections() << _(" matches");
@@ -5473,7 +5508,7 @@ void clEditor::OnMouseWheel(wxMouseEvent& event)
         return;
     } else if(IsCompletionBoxShown()) {
         event.Skip(false);
-        wxCodeCompletionBoxManager::Get().GetCCWindow()->DoMouseScroll(event);
+        // wxCodeCompletionBoxManager::Get().GetCCWindow()->DoMouseScroll(event);
     }
 }
 
@@ -5611,6 +5646,41 @@ int clEditor::GetFirstNonWhitespacePos(bool backward)
         }
     }
     return pos;
+}
+
+void clEditor::UpdateLineNumberMarginWidth()
+{
+    int newLineCount = GetLineCount();
+    int newWidthCount = log10(newLineCount) + 2;
+    SetMarginWidth(NUMBER_MARGIN_ID, newWidthCount * TextWidth(wxSTC_STYLE_LINENUMBER, "X"));
+}
+
+void clEditor::OnZoom(wxStyledTextEvent& event)
+{
+    event.Skip();
+    // When zooming, update the line number margin
+    UpdateLineNumberMarginWidth();
+}
+
+void clEditor::DoToggleFold(int line, const wxString& textTag)
+{
+#if wxCHECK_VERSION(3, 1, 0)
+    ToggleFoldShowText(line, GetOptions()->GetUnderlineFoldLine() ? wxString() : textTag);
+#else
+    wxUnusedVar(textTag);
+    ToggleFold(line);
+#endif
+}
+
+size_t clEditor::GetEditorTextRaw(std::string& text)
+{
+    text.clear();
+    wxCharBuffer cb = GetTextRaw();
+    if(cb.length()) {
+        text.reserve(cb.length() + 1);
+        text.append(cb.data());
+    }
+    return text.length();
 }
 
 // ----------------------------------

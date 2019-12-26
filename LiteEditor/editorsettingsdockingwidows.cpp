@@ -62,10 +62,9 @@ EditorSettingsDockingWindows::EditorSettingsDockingWindows(wxWindow* parent)
     m_cpCaptionColour->SetColour(DrawingUtils::GetCaptionColour());
 
     m_choiceTabStyle->Append(clTabRenderer::GetRenderers());
-    wxString selection = clConfig::Get().Read("TabStyle", wxString("GTK3"));
+    wxString selection = clConfig::Get().Read("TabStyle", wxString("MINIMAL"));
     m_choiceTabStyle->SetStringSelection(selection);
 
-    m_checkBoxEditorTabsFollowsTheme->SetValue(options->IsTabColourMatchesTheme());
     m_checkBoxMouseScrollSwitchTabs->SetValue(options->IsMouseScrollSwitchTabs());
     m_checkBoxSortTabsDropdownAlphabetically->SetValue(options->IsSortTabsDropdownAlphabetically());
     m_checkBoxEnableTabSwitchingKey->SetValue(options->IsCtrlTabEnabled());
@@ -170,7 +169,6 @@ void EditorSettingsDockingWindows::Save(OptionsConfigPtr options)
     options->SetEnsureCaptionsVisible(m_checkBoxEnsureCaptionsVisible->IsChecked());
     options->SetCtrlTabEnabled(m_checkBoxEnableTabSwitchingKey->IsChecked());
     options->SetSortNavBarDropdown(m_checkBoxNavBarSortDropdown->IsChecked());
-    options->SetTabColourMatchesTheme(m_checkBoxEditorTabsFollowsTheme->IsChecked());
     options->SetTabHasXButton(m_checkBoxShowXButton->IsChecked());
     options->SetMouseScrollSwitchTabs(m_checkBoxMouseScrollSwitchTabs->IsChecked());
     options->SetSortTabsDropdownAlphabetically(m_checkBoxSortTabsDropdownAlphabetically->IsChecked());

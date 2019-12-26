@@ -1,6 +1,7 @@
 #include "ColoursAndFontsManager.h"
 #include "clFindResultsStyler.h"
 #include "editor_config.h"
+#include "globals.h"
 #include "lexer_configuration.h"
 #include "optionsconfig.h"
 
@@ -30,7 +31,7 @@ void clFindResultsStyler::SetStyles(wxStyledTextCtrl* sci)
     if(!lexer) { lexer = ColoursAndFontsManager::Get().GetLexer("text"); }
 
     const StyleProperty& defaultStyle = lexer->GetProperty(0);
-    wxFont defaultFont = lexer->GetFontForSyle(0);
+    wxFont defaultFont = lexer->GetFontForSyle(0, sci);
 
     for(size_t i = 0; i < wxSTC_STYLE_MAX; ++i) {
         sci->StyleSetForeground(i, defaultStyle.GetFgColour());
@@ -91,19 +92,27 @@ void clFindResultsStyler::SetStyles(wxStyledTextCtrl* sci)
 #endif
     sci->IndicatorSetUnder(1, true);
 
-    sci->SetMarginWidth(0, 0);
-    sci->SetMarginWidth(1, 16);
-    sci->SetMarginWidth(2, 0);
-    sci->SetMarginWidth(3, 0);
+    sci->SetMarginWidth(0, 0);                    // line numbers
+    sci->SetMarginWidth(1, ::clGetSize(16, sci)); // symbols margin
+    sci->SetMarginWidth(2, 0);                    // folding margin
+    sci->SetMarginWidth(3, 0);                    // separator margin
+    sci->SetMarginType(3, wxSTC_MARGIN_FORE);
+    sci->SetMarginMask(3, 0);
+
     sci->SetMarginWidth(4, 0);
     sci->SetMarginSensitive(1, true);
     sci->HideSelection(true);
-
+#if wxCHECK_VERSION(3, 1, 0)
+    sci->SetMarginBackground(3, *wxBLACK);
+#endif
     // Indentation
     OptionsConfigPtr options = EditorConfigST::Get()->GetOptions();
     sci->SetUseTabs(options->GetIndentUsesTabs());
     sci->SetTabWidth(options->GetIndentWidth());
     sci->SetIndent(options->GetIndentWidth());
+    for(int i = 0; i <= 4; ++i) { // there are 5 margins defined from 0 -> 4 (including)
+        sci->SetMarginCursor(i, wxSTC_CURSORARROW);
+    }
     sci->Refresh();
 }
 

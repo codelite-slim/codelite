@@ -37,6 +37,7 @@
 #include "clBootstrapWizard.h"
 #include "clCustomiseToolBarDlg.h"
 #include "clEditorBar.h"
+#include "clFileSystemWorkspace.hpp"
 #include "clGotoAnythingManager.h"
 #include "clInfoBar.h"
 #include "clMainFrameHelper.h"
@@ -75,6 +76,7 @@
 #include "wxCustomStatusBar.h"
 #include <CompilersDetectorManager.h>
 #include <algorithm>
+#include <array>
 #include <cpptoken.h>
 #include <wx/bookctrl.h>
 #include <wx/busyinfo.h>
@@ -82,8 +84,6 @@
 #include <wx/splash.h>
 #include <wx/stc/stc.h>
 #include <wx/wupdlock.h>
-#include "clFileSystemWorkspace.hpp"
-#include <array>
 
 #ifdef __WXGTK20__
 // We need this ugly hack to workaround a gtk2-wxGTK name-clash
@@ -133,7 +133,6 @@
 #include "menumanager.h"
 #include "navigationmanager.h"
 #include "new_build_tab.h"
-#include "newversiondlg.h"
 #include "newworkspacedlg.h"
 #include "openwindowspanel.h"
 #include "options_dlg2.h"
@@ -162,6 +161,7 @@
 
 // from auto-generated file svninfo.cpp:
 static wxStopWatch gStopWatch;
+static QuickOutlineDlg* gOutlineDialog = nullptr;
 
 // from iconsextra.cpp:
 extern char* cubes_xpm[];
@@ -472,6 +472,7 @@ EVT_MENU(XRCID("build_active_project"), clMainFrame::OnBuildProject)
 EVT_MENU(XRCID("build_active_project_only"), clMainFrame::OnBuildProjectOnly)
 EVT_TOOL_DROPDOWN(XRCID("build_active_project"), clMainFrame::OnShowBuildMenu)
 EVT_MENU(XRCID("compile_active_file"), clMainFrame::OnCompileFile)
+EVT_MENU(XRCID("compile_active_file_project"), clMainFrame::OnCompileFileProject)
 EVT_MENU(XRCID("clean_active_project"), clMainFrame::OnCleanProject)
 EVT_MENU(XRCID("clean_active_project_only"), clMainFrame::OnCleanProjectOnly)
 EVT_MENU(XRCID("stop_active_project_build"), clMainFrame::OnStopBuild)
@@ -486,6 +487,7 @@ EVT_UPDATE_UI(XRCID("execute_no_debug"), clMainFrame::OnExecuteNoDebugUI)
 EVT_UPDATE_UI(XRCID("stop_executed_program"), clMainFrame::OnStopExecutedProgramUI)
 EVT_UPDATE_UI(XRCID("build_active_project"), clMainFrame::OnBuildProjectUI)
 EVT_UPDATE_UI(XRCID("compile_active_file"), clMainFrame::OnCompileFileUI)
+EVT_UPDATE_UI(XRCID("compile_active_file_project"), clMainFrame::OnCompileFileUI)
 EVT_UPDATE_UI(XRCID("clean_active_project"), clMainFrame::OnCleanProjectUI)
 EVT_UPDATE_UI(XRCID("stop_active_project_build"), clMainFrame::OnStopBuildUI)
 EVT_UPDATE_UI(XRCID("rebuild_active_project"), clMainFrame::OnBuildProjectUI)
@@ -854,6 +856,10 @@ clMainFrame::~clMainFrame(void)
 {
     wxDELETE(m_singleInstanceThread);
     wxDELETE(m_webUpdate);
+    if(gOutlineDialog) {
+        gOutlineDialog->Destroy();
+        gOutlineDialog = nullptr;
+    }
 
 #ifndef __WXMSW__
     m_zombieReaper.Stop();
@@ -1002,6 +1008,22 @@ void clMainFrame::Initialize(bool loadLastSession)
 }
 
 clMainFrame* clMainFrame::Get() { return m_theFrame; }
+static int GetBestXButtonSize(wxWindow* win)
+{
+    wxUnusedVar(win);
+    static bool once = true;
+    static int buttonSize = 14;
+    if(once) {
+        once = false;
+        wxBitmap bmp(1, 1);
+        wxMemoryDC dc(bmp);
+        wxGCDC gcdc(dc);
+        gcdc.SetFont(DrawingUtils::GetDefaultGuiFont());
+        wxSize sz = gcdc.GetTextExtent("T");
+        buttonSize = wxMax(sz.x, sz.y);
+    }
+    return buttonSize;
+}
 
 void clMainFrame::CreateGUIControls()
 {
@@ -1025,18 +1047,12 @@ void clMainFrame::CreateGUIControls()
 
     m_mgr.GetArtProvider()->SetMetric(wxAUI_DOCKART_GRADIENT_TYPE, wxAUI_GRADIENT_HORIZONTAL);
 
-    int captionSize = 22;
-    {
-        wxMemoryDC memDC;
-        wxBitmap bmp(1, 1);
-        memDC.SelectObject(bmp);
-        memDC.SetFont(wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT));
-        wxSize textSize = memDC.GetTextExtent("Tp");
-        captionSize = textSize.y + 6; // 3 pixesl space on each side
-    }
+    // Get the best caption size
+    int captionSize = GetBestXButtonSize(this);
+    int extra = ::clGetSize(6, this);
+    captionSize += extra;
 
     m_mgr.GetArtProvider()->SetMetric(wxAUI_DOCKART_CAPTION_SIZE, captionSize);
-
     m_mgr.GetArtProvider()->SetColor(wxAUI_DOCKART_SASH_COLOUR, DrawingUtils::GetPanelBgColour());
     m_mgr.GetArtProvider()->SetColor(wxAUI_DOCKART_BACKGROUND_COLOUR, DrawingUtils::GetPanelBgColour());
 
@@ -1045,6 +1061,7 @@ void clMainFrame::CreateGUIControls()
     clCxxWorkspaceST::Get()->SetStartupDir(ManagerST::Get()->GetStartupDirectory());
 
     m_mgr.GetArtProvider()->SetMetric(wxAUI_DOCKART_PANE_BORDER_SIZE, 0);
+    m_mgr.GetArtProvider()->SetMetric(wxAUI_DOCKART_PANE_BUTTON_SIZE, GetBestXButtonSize(this));
     m_mgr.GetArtProvider()->SetMetric(wxAUI_DOCKART_SASH_SIZE, 4);
 
     // Load the menubar from XRC and set this frame's menubar to it.
@@ -1789,10 +1806,11 @@ void clMainFrame::OnFileReload(wxCommandEvent& event)
         if(editor->GetModify()) {
             // Ask user if he really wants to lose all changes
             wxString msg;
-            msg << editor->GetFileName().GetFullName() << _(" has been modified, reload file anyway?");
-            wxRichMessageDialog dlg(::wxGetTopLevelParent(editor), msg, _("Reload File"),
-                                    wxYES_NO | wxCANCEL | wxNO_DEFAULT | wxICON_WARNING);
-            if(dlg.ShowModal() != wxID_YES) { return; }
+            msg << _("File '") << editor->GetFileName().GetFullName() << _("' is modified\nContinue with reload?");
+            if(::wxMessageBox(msg, _("Reload File"), wxICON_WARNING | wxYES_NO | wxCANCEL | wxCANCEL_DEFAULT) !=
+               wxYES) {
+                return;
+            }
         }
         editor->ReloadFromDisk(true);
     }
@@ -2650,10 +2668,12 @@ void clMainFrame::OnQuickOutline(wxCommandEvent& event)
     wxUnusedVar(event);
     if(!::clIsCxxWorkspaceOpened()) { return; }
 
-    QuickOutlineDlg dlg(::wxGetTopLevelParent(activeEditor), activeEditor->GetFileName().GetFullPath(), wxID_ANY,
-                        wxT(""), wxDefaultPosition, wxSize(400, 400), wxDEFAULT_DIALOG_STYLE);
-
-    dlg.ShowModal();
+    // Show outline dialog
+    if(gOutlineDialog == nullptr) {
+        gOutlineDialog = new QuickOutlineDlg(::wxGetTopLevelParent(activeEditor), wxID_ANY, wxDefaultPosition,
+                                             wxSize(400, 400), wxDEFAULT_DIALOG_STYLE);
+    }
+    if(gOutlineDialog->ParseActiveBuffer()) { gOutlineDialog->ShowModal(); }
     activeEditor->SetActive();
 }
 
@@ -3189,7 +3209,7 @@ void clMainFrame::CompleteInitialization()
 #else
     DebuggerMgr::Get().Initialize(this, EnvironmentConfig::Instance(), ManagerST::Get()->GetInstallDir());
 #endif
-    DebuggerMgr::Get().LoadDebuggers();
+    DebuggerMgr::Get().LoadDebuggers(ManagerST::Get());
 
     // Connect some system events
     m_mgr.Connect(wxEVT_AUI_PANE_CLOSE, wxAuiManagerEventHandler(clMainFrame::OnDockablePaneClosed), NULL, this);
@@ -3300,6 +3320,27 @@ void clMainFrame::OnAppActivated(wxActivateEvent& e)
     }
 
     e.Skip();
+}
+
+void clMainFrame::OnCompileFileProject(wxCommandEvent& e)
+{
+    wxUnusedVar(e);
+    CHECK_COND_RET(clCxxWorkspaceST::Get()->IsOpen());
+    CHECK_COND_RET(!ManagerST::Get()->IsBuildInProgress());
+
+    clEditor* editor = GetMainBook()->GetActiveEditor();
+    CHECK_PTR_RET(editor);
+
+    wxString projname = clCxxWorkspaceST::Get()->GetProjectFromFile(editor->GetFileName());
+    CHECK_COND_RET(!projname.IsEmpty());
+
+    ProjectPtr p = clCxxWorkspaceST::Get()->GetProject(projname);
+    CHECK_PTR_RET(p);
+
+    // Trigger the build
+    wxCommandEvent eventBuild(wxEVT_CMD_BUILD_PROJECT_ONLY);
+    eventBuild.SetString(p->GetName());
+    EventNotifier::Get()->QueueEvent(eventBuild.Clone());
 }
 
 void clMainFrame::OnCompileFile(wxCommandEvent& e)
@@ -3977,17 +4018,7 @@ void clMainFrame::OnQuickDebug(wxCommandEvent& e)
                 eventStarted.SetClientData(&startup_info);
                 EventNotifier::Get()->ProcessEvent(eventStarted);
             }
-
             dbgr->Run(bStartedInDebugMode ? GetTheApp()->GetDebuggerArgs() : dlg.GetArguments(), wxEmptyString);
-
-            // Now the debugger has been fed the breakpoints, re-Initialise the breakpt view,
-            // so that it uses debugger_ids instead of internal_ids
-            clMainFrame::Get()->GetDebuggerPane()->GetBreakpointView()->Initialize();
-
-            // Layout management
-            ManagerST::Get()->GetPerspectiveManager().SavePerspective(NORMAL_LAYOUT);
-            ManagerST::Get()->GetPerspectiveManager().LoadPerspective(DEBUG_LAYOUT);
-
         } else if(!dbgr && !bStartedInDebugMode) {
 
             // Fire an event, maybe a plugin wants to process this
@@ -4074,12 +4105,6 @@ void clMainFrame::OnDebugCoreDump(wxCommandEvent& e)
                 eventStarted.SetClientData(&startup_info);
                 EventNotifier::Get()->ProcessEvent(eventStarted);
             }
-
-            // Coredump debugging doesn't use breakpoints, but probably we should do this here anyway...
-            clMainFrame::Get()->GetDebuggerPane()->GetBreakpointView()->Initialize();
-
-            ManagerST::Get()->GetPerspectiveManager().SavePerspective(NORMAL_LAYOUT);
-            ManagerST::Get()->GetPerspectiveManager().LoadPerspective(DEBUG_LAYOUT);
 
             // Make sure that the debugger pane is visible, and select the stack trace tab
             wxAuiPaneInfo& info = GetDockingManager().GetPane(wxT("Debugger"));
@@ -5303,6 +5328,13 @@ void clMainFrame::OnDebugStarted(clDebugEvent& event)
     event.Skip();
     m_debuggerToolbar->Show();
     m_debuggerToolbar->GetParent()->GetSizer()->Layout();
+
+    if(DebuggerMgr::Get().GetActiveDebugger() && DebuggerMgr::Get().GetActiveDebugger()->IsRunning()) {
+        // One of CodeLite builtin debuggers is running, load the perspective
+        clMainFrame::Get()->GetDebuggerPane()->GetBreakpointView()->Initialize();
+        ManagerST::Get()->GetPerspectiveManager().SavePerspective(NORMAL_LAYOUT);
+        ManagerST::Get()->GetPerspectiveManager().LoadPerspective(DEBUG_LAYOUT);
+    }
 }
 
 void clMainFrame::OnDebugEnded(clDebugEvent& event)

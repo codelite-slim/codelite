@@ -23,35 +23,25 @@
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
-#ifdef WX_PRECOMP
-
-#include "wx/wxprec.h"
-
-#ifdef __BORLANDC__
-#pragma hdrstop
-#endif //__BORLANDC__
-
-#else
-#include <wx/wx.h>
-#endif // WX_PRECOMP
-
 #include "cl_editor.h"
 #include "cpp_symbol_tree.h"
 #include "drawingutils.h"
+#include "globals.h"
 #include "macros.h"
 #include "manager.h"
 #include "quickoutlinedlg.h"
 #include "windowattrmanager.h"
-#include "globals.h"
 
-QuickOutlineDlg::QuickOutlineDlg(wxWindow* parent, const wxString& fileName, int id, wxString title, wxPoint pos,
-                                 wxSize size, int style)
-    : wxDialog(parent, id, title, pos, size, style | wxDEFAULT_DIALOG_STYLE)
-    , m_fileName(fileName)
+QuickOutlineDlg::QuickOutlineDlg(wxWindow* parent, int id, wxPoint pos, wxSize size, int style)
+    : wxDialog(parent, id, wxEmptyString, pos, size, wxRESIZE_BORDER)
 {
+    const wxColour& bgColour = DrawingUtils::GetColours().GetBgColour();
+    SetBackgroundColour(bgColour);
     wxBoxSizer* dialogSizer = new wxBoxSizer(wxVERTICAL);
     SetSizer(dialogSizer);
     wxPanel* mainPanel = new wxPanel(this);
+    mainPanel->SetBackgroundColour(bgColour);
+
     dialogSizer->Add(mainPanel, 1, wxEXPAND);
     wxBoxSizer* mainSizer = new wxBoxSizer(wxVERTICAL);
     mainPanel->SetSizer(mainSizer);
@@ -61,13 +51,19 @@ QuickOutlineDlg::QuickOutlineDlg(wxWindow* parent, const wxString& fileName, int
         new CppSymbolTree(mainPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTR_ROW_LINES | wxTR_HIDE_ROOT);
     m_treeOutline->Bind(wxEVT_KEY_DOWN, &QuickOutlineDlg::OnKeyDown, this);
     m_treeOutline->SetSymbolsImages(clGetManager()->GetStdIcons()->GetStandardMimeBitmapListPtr());
-
+    m_treeOutline->EnableStyle(wxTR_ENABLE_SEARCH, false);
     Connect(wxEVT_CMD_CPP_SYMBOL_ITEM_SELECTED, wxCommandEventHandler(QuickOutlineDlg::OnItemSelected), NULL, this);
+
+    m_searchCtrl =
+        new wxTextCtrl(mainPanel, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_RICH | wxTE_PROCESS_ENTER);
+    m_searchCtrl->Bind(wxEVT_TEXT, &QuickOutlineDlg::OnTextEntered, this);
+    m_searchCtrl->Bind(wxEVT_KEY_DOWN, &QuickOutlineDlg::OnKeyDown, this);
+    m_searchCtrl->Bind(wxEVT_TEXT_ENTER, &QuickOutlineDlg::OnSearchEnter, this);
     mainSizer->Add(m_treeOutline, 1, wxEXPAND);
+    mainSizer->Insert(0, m_searchCtrl, 0, wxEXPAND);
     SetName("QuickOutlineDlg");
     GetSizer()->Fit(this);
     Layout();
-    CallAfter(&QuickOutlineDlg::DoParseActiveBuffer);
     ::clSetDialogBestSizeAndPosition(this);
 }
 
@@ -76,19 +72,64 @@ QuickOutlineDlg::~QuickOutlineDlg() { m_treeOutline->Unbind(wxEVT_KEY_DOWN, &Qui
 void QuickOutlineDlg::OnItemSelected(wxCommandEvent& e)
 {
     wxUnusedVar(e);
-    Close();
+    DoHide();
+}
+
+void QuickOutlineDlg::OnTextEntered(wxCommandEvent& e)
+{
+    wxUnusedVar(e);
+    DoFindNext();
+}
+
+void QuickOutlineDlg::OnSearchEnter(wxCommandEvent& e)
+{
+    wxUnusedVar(e);
+    m_treeOutline->ItemActivated();
+    DoHide();
 }
 
 void QuickOutlineDlg::OnKeyDown(wxKeyEvent& e)
 {
     e.Skip();
-    if(e.GetKeyCode() == WXK_ESCAPE) { Close(); }
+    if(e.GetEventObject() == m_searchCtrl) {
+        bool hasFilter = !m_searchCtrl->GetValue().IsEmpty();
+        if(e.GetKeyCode() == WXK_DOWN) {
+            if(hasFilter) {
+                DoFindNext();
+            } else {
+                m_treeOutline->LineDown();
+            }
+            e.Skip(false);
+        } else if(e.GetKeyCode() == WXK_UP) {
+            if(hasFilter) {
+                DoFindPrev();
+            } else {
+                m_treeOutline->LineUp();
+            }
+            e.Skip(false);
+        } else if(e.GetKeyCode() == WXK_PAGEDOWN) {
+            m_treeOutline->PageDown();
+            e.Skip(false);
+        } else if(e.GetKeyCode() == WXK_PAGEUP) {
+            m_treeOutline->PageUp();
+            e.Skip(false);
+        } else if(e.GetKeyCode() == WXK_ESCAPE) {
+            if(m_searchCtrl->GetValue().IsEmpty()) {
+                DoHide();
+            } else {
+                m_treeOutline->ClearAllHighlights();
+                m_searchCtrl->ChangeValue("");
+            }
+        }
+    } else {
+        if(e.GetKeyCode() == WXK_ESCAPE) { DoHide(); }
+    }
 }
 
-void QuickOutlineDlg::DoParseActiveBuffer()
+bool QuickOutlineDlg::ParseActiveBuffer()
 {
     IEditor* editor = clGetManager()->GetActiveEditor();
-    if(!editor) return;
+    if(!editor) { return false; }
 
     wxString filename = editor->GetFileName().GetFullPath();
     TagEntryPtrVector_t tags;
@@ -97,9 +138,63 @@ void QuickOutlineDlg::DoParseActiveBuffer()
         tags = TagsManagerST::Get()->ParseBuffer(editor->GetCtrl()->GetText(), editor->GetFileName().GetFullPath());
         TagsManagerST::Get()->GetFileCache()->Update(editor->GetFileName(), tags);
     }
-    m_treeOutline->BuildTree(m_fileName, tags);
+
+    if(tags.empty()) { return false; }
+    m_treeOutline->BuildTree(filename, tags);
     m_treeOutline->ExpandAll();
     wxTreeItemId selectItem = m_treeOutline->GetNextItem(m_treeOutline->GetRootItem());
     m_treeOutline->SelectItem(selectItem);
-    m_treeOutline->CallAfter(&CppSymbolTree::SetFocus);
+    m_searchCtrl->CallAfter(&wxTextCtrl::SetFocus);
+    return true;
+}
+
+void QuickOutlineDlg::DoFindNext()
+{
+    m_treeOutline->ClearAllHighlights();
+    wxString find_what = m_searchCtrl->GetValue();
+    if(find_what.empty()) { return; }
+
+    wxTreeItemId focusedItem = m_treeOutline->GetFocusedItem();
+    CHECK_ITEM_RET(focusedItem);
+
+    wxTreeItemId nextItem = m_treeOutline->GetNextItem(focusedItem);
+    if(!nextItem.IsOk()) { nextItem = focusedItem; }
+
+    wxTreeItemId item = m_treeOutline->FindNext(nextItem, find_what, 0, wxTR_SEARCH_DEFAULT);
+    // if we fail to move on, use the current focused item
+    if(!item.IsOk()) { item = m_treeOutline->FindPrev(focusedItem, find_what, 0, wxTR_SEARCH_DEFAULT); }
+    if(item.IsOk()) {
+        m_treeOutline->SelectItem(item);
+        m_treeOutline->HighlightText(item, true);
+        m_treeOutline->EnsureVisible(item);
+    }
+}
+
+void QuickOutlineDlg::DoFindPrev()
+{
+    m_treeOutline->ClearAllHighlights();
+    wxString find_what = m_searchCtrl->GetValue();
+    if(find_what.empty()) { return; }
+
+    wxTreeItemId focusedItem = m_treeOutline->GetFocusedItem();
+    CHECK_ITEM_RET(focusedItem);
+
+    wxTreeItemId prevItem = m_treeOutline->GetPrevItem(focusedItem);
+    if(!prevItem.IsOk()) { prevItem = focusedItem; }
+
+    wxTreeItemId item = m_treeOutline->FindPrev(prevItem, find_what, 0, wxTR_SEARCH_DEFAULT);
+    // if we fail to move on, use the current focused item
+    if(!item.IsOk()) { item = m_treeOutline->FindPrev(focusedItem, find_what, 0, wxTR_SEARCH_DEFAULT); }
+    if(item.IsOk()) {
+        m_treeOutline->SelectItem(item);
+        m_treeOutline->HighlightText(item, true);
+        m_treeOutline->EnsureVisible(item);
+    }
+}
+
+void QuickOutlineDlg::DoHide()
+{
+    Hide();
+    m_searchCtrl->Clear();
+    m_treeOutline->DeleteAllItems();
 }

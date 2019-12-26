@@ -44,6 +44,10 @@
  }]]]>
     </Plugin>
   </Plugins>
+  <VirtualDirectory Name="Python">
+    <File Name="clPythonLocator.cpp"/>
+    <File Name="clPythonLocator.hpp"/>
+  </VirtualDirectory>
   <VirtualDirectory Name="FileSystemWorkspace">
     <File Name="NewFileSystemWorkspaceDialog.cpp"/>
     <File Name="NewFileSystemWorkspaceDialog.h"/>
@@ -73,6 +77,8 @@
     <File Name="LanguageServerProtocol.cpp"/>
   </VirtualDirectory>
   <VirtualDirectory Name="CustomControls">
+    <File Name="clThemedSTC.cpp"/>
+    <File Name="clThemedSTC.hpp"/>
     <File Name="clThemedChoice.cpp"/>
     <File Name="clThemedChoice.h"/>
     <File Name="clChoice.h"/>
@@ -159,6 +165,8 @@
     <Topleveldir>/src/codelite/Plugin</Topleveldir>
   </Reconciliation>
   <VirtualDirectory Name="src">
+    <File Name="clRegistery.cpp"/>
+    <File Name="clRegistery.hpp"/>
     <File Name="clSnippetManager.cpp"/>
     <File Name="clSnippetManager.hpp"/>
     <VirtualDirectory Name="clangd">
@@ -805,6 +813,18 @@
     <File Name="clJSCTags.h"/>
     <File Name="jsctags.zip"/>
   </VirtualDirectory>
+  <Dependencies Name="CMake_Debug"/>
+  <Dependencies Name="Custom"/>
+  <Dependencies Name="Win_wxWidgets_29"/>
+  <Dependencies Name="Win_x64_Debug"/>
+  <Dependencies Name="Win_x64_Release">
+    <Project Name="libCodeLite"/>
+    <Project Name="sqlite3"/>
+    <Project Name="wxsqlite3"/>
+    <Project Name="databaselayer_sqlite"/>
+    <Project Name="wxshapeframework"/>
+  </Dependencies>
+  <Dependencies Name="Win_x86_Release"/>
   <Settings Type="Dynamic Library">
     <GlobalSettings>
       <Compiler Options="" C_Options="" Assembler="">
@@ -974,7 +994,7 @@
         <Library Value="UxTheme"/>
       </Linker>
       <ResourceCompiler Options="" Required="yes"/>
-      <General OutputFile="libplugin_sdkud.dll" IntermediateDirectory="" Command="$(WorkspacePath)/build-$(WorkspaceConfiguration)/bin/$(OutputFile)" CommandArguments="" UseSeparateDebugArgs="no" DebugArguments="" WorkingDirectory="" PauseExecWhenProcTerminates="yes" IsGUIProgram="no" IsEnabled="yes"/>
+      <General OutputFile="libplugin_sdkud.dll" IntermediateDirectory="" Command="$(WorkspacePath)/build-$(WorkspaceConfiguration)/bin/$(OutputFile)" CommandArguments="--no-plugins" UseSeparateDebugArgs="no" DebugArguments="" WorkingDirectory="" PauseExecWhenProcTerminates="yes" IsGUIProgram="no" IsEnabled="yes"/>
       <BuildSystem Name="CodeLite Make Generator"/>
       <Environment EnvVarSetName="&lt;Use Defaults&gt;" DbgSetName="&lt;Use Defaults&gt;">
         <![CDATA[]]>
@@ -1117,16 +1137,4 @@
       </Completion>
     </Configuration>
   </Settings>
-  <Dependencies Name="CMake_Debug"/>
-  <Dependencies Name="Custom"/>
-  <Dependencies Name="Win_wxWidgets_29"/>
-  <Dependencies Name="Win_x64_Debug"/>
-  <Dependencies Name="Win_x64_Release">
-    <Project Name="libCodeLite"/>
-    <Project Name="sqlite3"/>
-    <Project Name="wxsqlite3"/>
-    <Project Name="databaselayer_sqlite"/>
-    <Project Name="wxshapeframework"/>
-  </Dependencies>
-  <Dependencies Name="Win_x86_Release"/>
 </CodeLite_Project>

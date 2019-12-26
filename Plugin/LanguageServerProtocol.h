@@ -91,14 +91,14 @@ protected:
     bool ShouldHandleFile(IEditor* editor) const;
     wxString GetLogPrefix() const;
     void ProcessQueue();
-    static wxString GetLanguageId(const wxFileName& fn) { return GetLanguageId(fn.GetFullName()); }
+    static wxString GetLanguageId(const wxFileName& fn);
     static wxString GetLanguageId(const wxString& fn);
 
 protected:
     /**
      * @brief notify about file open
      */
-    void SendOpenRequest(const wxFileName& filename, const wxString& fileContent, const wxString& languageId);
+    void SendOpenRequest(const wxFileName& filename, const std::string& fileContent, const wxString& languageId);
 
     /**
      * @brief report a file-close notification
@@ -108,12 +108,12 @@ protected:
     /**
      * @brief report a file-changed notification
      */
-    void SendChangeRequest(const wxFileName& filename, const wxString& fileContent);
+    void SendChangeRequest(const wxFileName& filename, const std::string& fileContent);
 
     /**
      * @brief report a file-save notification
      */
-    void SendSaveRequest(const wxFileName& filename, const wxString& fileContent);
+    void SendSaveRequest(const wxFileName& filename, const std::string& fileContent);
 
     /**
      * @brief request for a code completion at a given doc/position

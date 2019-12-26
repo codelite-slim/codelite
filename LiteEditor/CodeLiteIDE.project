@@ -310,12 +310,12 @@
       <File Name="SelectProjectsDlg.cpp"/>
     </VirtualDirectory>
     <VirtualDirectory Name="Compiler">
+      <File Name="NewFileTemplateDialog.cpp"/>
+      <File Name="NewFileTemplateDialog.h"/>
+      <File Name="EditCmpTemplateDialog.cpp"/>
+      <File Name="EditCmpTemplateDialog.h"/>
       <File Name="advanced_settings.h"/>
       <File Name="advanced_settings.cpp"/>
-      <File Name="editcmpfileinfodlg.h"/>
-      <File Name="editcmpfileinfobase.cpp"/>
-      <File Name="editcmpfileinfobase.h"/>
-      <File Name="editcmpfileinfodlg.cpp"/>
       <File Name="addoptioncheckdlgbase.h"/>
       <File Name="addoptioncheckdlg.cpp"/>
       <File Name="addoptioncheckdlg.h"/>
@@ -469,17 +469,11 @@
     <File Name="singleinstancethreadjob.h"/>
     <File Name="webupdatethread.cpp"/>
     <File Name="webupdatethread.h"/>
-    <File Name="newversionbasedlg.cpp"/>
-    <File Name="newversionbasedlg.h"/>
-    <File Name="newversiondlg.h"/>
-    <File Name="newversiondlg.cpp"/>
     <File Name="WelcomePage.cpp"/>
     <File Name="WelcomePage.h"/>
     <File Name="autoversion.cpp"/>
     <File Name="theme_handler.h"/>
     <File Name="theme_handler.cpp"/>
-    <File Name="wxcl_log_text_ctrl.h"/>
-    <File Name="wxcl_log_text_ctrl.cpp"/>
     <File Name="clInitializeDialog.h"/>
     <File Name="clInitializeDialog.cpp"/>
     <File Name="autoversion.h"/>
@@ -506,6 +500,8 @@
     <File Name="clConfigurationSelectionCtrl.h"/>
   </VirtualDirectory>
   <VirtualDirectory Name="Editor">
+    <File Name="ContextPython.cpp"/>
+    <File Name="ContextPython.hpp"/>
     <File Name="context_base.h"/>
     <File Name="context_cpp.h"/>
     <File Name="context_manager.h"/>
@@ -2108,7 +2104,7 @@ resources.cpp: resources.xrc
         <Library Value="libwxsqlite3ud.dll"/>
       </Linker>
       <ResourceCompiler Options="$(shell wx-config --rcflags)" Required="yes"/>
-      <General OutputFile="codelite-dbg.exe" IntermediateDirectory="" Command="codelite-dbg.exe" CommandArguments="-b . " UseSeparateDebugArgs="no" DebugArguments="-b . --no-plugins" WorkingDirectory="../Runtime" PauseExecWhenProcTerminates="no" IsGUIProgram="yes" IsEnabled="yes"/>
+      <General OutputFile="codelite-dbg.exe" IntermediateDirectory="" Command="$(WorkspacePath)/Runtime/codelite-dbg.exe" CommandArguments="-b . " UseSeparateDebugArgs="no" DebugArguments="-b . --no-plugins" WorkingDirectory="$(WorkspacePath)/Runtime" PauseExecWhenProcTerminates="no" IsGUIProgram="yes" IsEnabled="yes"/>
       <BuildSystem Name="CodeLite Make Generator"/>
       <Environment EnvVarSetName="Default" DbgSetName="&lt;Use Defaults&gt;">
         <![CDATA[PATH=../sdk/clang/lib;$(WXWIN)\lib\gcc_dll;$(PATH)]]>
@@ -2186,7 +2182,7 @@ resources.cpp: resources.xrc
         <Command Enabled="yes"/>
       </PreBuild>
       <PostBuild>
-        <Command Enabled="yes">copy "$(IntermediateDirectory)\codelite-dbg.exe" ..\Runtime</Command>
+        <Command Enabled="yes">copy "$(OutputFile)" ..\Runtime</Command>
       </PostBuild>
       <CustomBuild Enabled="no">
         <Target Name="configure --enable-debug">./configure --enable-debug</Target>

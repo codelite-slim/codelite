@@ -25,11 +25,16 @@
 
 #if USE_SFTP
 
+#ifdef __WXMSW__
+#include <winsock2.h>
+#endif
+
 #include <wx/string.h>
 #include <wx/textdlg.h>
 #include <wx/thread.h>
 #include <wx/translation.h>
 #include "file_logger.h"
+#include "StringUtils.h"
 #ifdef __WXMSW__
 #include "wx/msw/winundef.h"
 #endif
@@ -117,10 +122,12 @@ void clSSH::Connect(int seconds)
 
     ssh_set_blocking(m_session, 0);
     int verbosity = SSH_LOG_NOLOG;
-    ssh_options_set(m_session, SSH_OPTIONS_HOST, m_host.mb_str(wxConvUTF8).data());
+    std::string host = StringUtils::ToStdString(m_host);
+    std::string user = StringUtils::ToStdString(GetUsername());
+    ssh_options_set(m_session, SSH_OPTIONS_HOST, host.c_str());
     ssh_options_set(m_session, SSH_OPTIONS_LOG_VERBOSITY, &verbosity);
     ssh_options_set(m_session, SSH_OPTIONS_PORT, &m_port);
-    ssh_options_set(m_session, SSH_OPTIONS_USER, GetUsername().mb_str().data());
+    ssh_options_set(m_session, SSH_OPTIONS_USER, user.c_str());
 
     // Connect the session
     int retries = seconds * 100;
@@ -136,7 +143,6 @@ bool clSSH::AuthenticateServer(wxString& message)
     char* hexa = NULL;
 
     message.Clear();
-    state = ssh_is_server_known(m_session);
 
 #if LIBSSH_VERSION_INT < SSH_VERSION_INT(0, 6, 1)
     int hlen = 0;
@@ -145,11 +151,12 @@ bool clSSH::AuthenticateServer(wxString& message)
 #else
     size_t hlen = 0;
     ssh_key key = NULL;
-    ssh_get_publickey(m_session, &key);
+    ssh_get_server_publickey(m_session, &key);
     ssh_get_publickey_hash(key, SSH_PUBLICKEY_HASH_SHA1, &hash, &hlen);
     if(hlen == 0) { throw clException("Unable to obtain server public key!"); }
 #endif
 
+    state = ssh_session_is_known_server(m_session);
     switch(state) {
     case SSH_SERVER_KNOWN_OK:
         free(hash);
@@ -192,7 +199,7 @@ bool clSSH::AuthenticateServer(wxString& message)
 void clSSH::AcceptServerAuthentication()
 {
     if(!m_session) { throw clException("NULL SSH session"); }
-    ssh_write_knownhost(m_session);
+    ssh_session_update_known_hosts(m_session);
 }
 
 #define THROW_OR_FALSE(msg)                  \
@@ -262,7 +269,7 @@ bool clSSH::LoginPublicKey(bool throwExc)
     if(!m_session) { THROW_OR_FALSE("NULL SSH session"); }
 
     int rc;
-    rc = ssh_userauth_autopubkey(m_session, NULL);
+    rc = ssh_userauth_publickey_auto(m_session, nullptr, nullptr);
     if(rc != SSH_AUTH_SUCCESS) { THROW_OR_FALSE(wxString() << _("Public Key error: ") << ssh_get_error(m_session)); }
     return true;
 }
@@ -290,7 +297,10 @@ void clSSH::Login()
 
     rc = ssh_userauth_none(m_session, NULL);
     if(rc == SSH_AUTH_SUCCESS) { return; }
-
+    
+    std::string username = StringUtils::ToStdString(GetUsername());
+    ssh_options_set(m_session, SSH_OPTIONS_USER, username.c_str());
+    
     // Try the following 3 methods in order
     // if non succeeded, this function will throw an exception
 

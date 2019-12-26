@@ -1,13 +1,14 @@
 #include "NewProjectDialog.h"
-#include <globals.h>
-#include "clWorkspaceManager.h"
-#include <wx/arrstr.h>
-#include <unordered_set>
 #include "build_settings_config.h"
-#include "debuggermanager.h"
 #include "buildmanager.h"
-#include "wxStringHash.h"
+#include "clWorkspaceManager.h"
 #include "cl_config.h"
+#include "debuggermanager.h"
+#include "wxStringHash.h"
+#include <globals.h>
+#include <unordered_set>
+#include <wx/arrstr.h>
+#include <wx/msgdlg.h>
 
 #define CONFIG_LAST_SELECTED_CATEGORY "NewProject/LastCategory"
 #define CONFIG_LAST_SELECTED_TYPE "NewProject/LastType"
@@ -179,4 +180,12 @@ void NewProjectDialog::OnCategoryChanged(wxCommandEvent& event)
     if(sel.IsEmpty()) { return; }
     wxArrayString a = GetProjectsTypesForCategory(sel);
     SetChoiceOptions(m_choiceType, a, wxEmptyString);
+}
+void NewProjectDialog::OnOK(wxCommandEvent& event)
+{
+    if(m_textCtrlName->GetValue().Contains(" ")) {
+        ::wxMessageBox(_("Project name must not contain spaces"), "CodeLite", wxICON_WARNING);
+        return;
+    }
+    event.Skip();
 }

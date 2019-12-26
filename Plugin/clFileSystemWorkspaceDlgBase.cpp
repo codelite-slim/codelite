@@ -246,6 +246,7 @@ FSConfigPageBase::FSConfigPageBase(wxWindow* parent, wxWindowID id, const wxPoin
     flexGridSizer33->SetFlexibleDirection(wxBOTH);
     flexGridSizer33->SetNonFlexibleGrowMode(wxFLEX_GROWMODE_SPECIFIED);
     flexGridSizer33->AddGrowableCol(1);
+    flexGridSizer33->AddGrowableRow(1);
     m_panelGeneral->SetSizer(flexGridSizer33);
 
     m_staticText109 = new wxStaticText(m_panelGeneral, wxID_ANY, _("Executable:"), wxDefaultPosition,
@@ -263,16 +264,57 @@ FSConfigPageBase::FSConfigPageBase(wxWindow* parent, wxWindowID id, const wxPoin
     m_staticText113 = new wxStaticText(m_panelGeneral, wxID_ANY, _("Arguments:"), wxDefaultPosition,
                                        wxDLG_UNIT(m_panelGeneral, wxSize(-1, -1)), 0);
 
-    flexGridSizer33->Add(m_staticText113, 0, wxALL | wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
+    flexGridSizer33->Add(m_staticText113, 0, wxALL | wxALIGN_RIGHT | wxALIGN_TOP, WXC_FROM_DIP(5));
 
-    m_textCtrlArgs = new wxTextCtrl(m_panelGeneral, wxID_ANY, wxT(""), wxDefaultPosition,
-                                    wxDLG_UNIT(m_panelGeneral, wxSize(-1, -1)), 0);
-    m_textCtrlArgs->SetToolTip(_("Program arguments"));
-#if wxVERSION_NUMBER >= 3000
-    m_textCtrlArgs->SetHint(wxT(""));
-#endif
+    m_textCtrlArgs =
+        new clThemedSTC(m_panelGeneral, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panelGeneral, wxSize(-1, -1)), 0);
+    // Configure the fold margin
+    m_textCtrlArgs->SetMarginType(4, wxSTC_MARGIN_SYMBOL);
+    m_textCtrlArgs->SetMarginMask(4, wxSTC_MASK_FOLDERS);
+    m_textCtrlArgs->SetMarginSensitive(4, true);
+    m_textCtrlArgs->SetMarginWidth(4, 0);
 
-    flexGridSizer33->Add(m_textCtrlArgs, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+    // Configure the tracker margin
+    m_textCtrlArgs->SetMarginWidth(1, 0);
+
+    // Configure the symbol margin
+    m_textCtrlArgs->SetMarginType(2, wxSTC_MARGIN_SYMBOL);
+    m_textCtrlArgs->SetMarginMask(2, ~(wxSTC_MASK_FOLDERS));
+    m_textCtrlArgs->SetMarginWidth(2, 0);
+    m_textCtrlArgs->SetMarginSensitive(2, true);
+
+    // Configure the line numbers margin
+    m_textCtrlArgs->SetMarginType(0, wxSTC_MARGIN_NUMBER);
+    m_textCtrlArgs->SetMarginWidth(0, 0);
+
+    // Configure the line symbol margin
+    m_textCtrlArgs->SetMarginType(3, wxSTC_MARGIN_FORE);
+    m_textCtrlArgs->SetMarginMask(3, 0);
+    m_textCtrlArgs->SetMarginWidth(3, 0);
+    // Select the lexer
+    m_textCtrlArgs->SetLexer(wxSTC_LEX_NULL);
+    // Set default font / styles
+    m_textCtrlArgs->StyleClearAll();
+    m_textCtrlArgs->SetWrapMode(2);
+    m_textCtrlArgs->SetIndentationGuides(0);
+    m_textCtrlArgs->SetKeyWords(0, wxT(""));
+    m_textCtrlArgs->SetKeyWords(1, wxT(""));
+    m_textCtrlArgs->SetKeyWords(2, wxT(""));
+    m_textCtrlArgs->SetKeyWords(3, wxT(""));
+    m_textCtrlArgs->SetKeyWords(4, wxT(""));
+
+    flexGridSizer33->Add(m_textCtrlArgs, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+
+    m_staticText179 = new wxStaticText(m_panelGeneral, wxID_ANY, _("Debugger:"), wxDefaultPosition,
+                                       wxDLG_UNIT(m_panelGeneral, wxSize(-1, -1)), 0);
+
+    flexGridSizer33->Add(m_staticText179, 0, wxALL | wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
+
+    wxArrayString m_choiceDebuggersArr;
+    m_choiceDebuggers = new clThemedChoice(m_panelGeneral, wxID_ANY, wxDefaultPosition,
+                                           wxDLG_UNIT(m_panelGeneral, wxSize(-1, -1)), m_choiceDebuggersArr, 0);
+
+    flexGridSizer33->Add(m_choiceDebuggers, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
 
     m_staticText35 = new wxStaticText(m_panelGeneral, wxID_ANY, _("File extensions:"), wxDefaultPosition,
                                       wxDLG_UNIT(m_panelGeneral, wxSize(-1, -1)), 0);
@@ -289,6 +331,20 @@ FSConfigPageBase::FSConfigPageBase(wxWindow* parent, wxWindowID id, const wxPoin
 
     flexGridSizer33->Add(m_textCtrlFileExt, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
 
+    m_staticText187 = new wxStaticText(m_panelGeneral, wxID_ANY, _("Exclude files:"), wxDefaultPosition,
+                                       wxDLG_UNIT(m_panelGeneral, wxSize(-1, -1)), 0);
+
+    flexGridSizer33->Add(m_staticText187, 0, wxALL | wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
+
+    m_textCtrlExcludeFiles = new wxTextCtrl(m_panelGeneral, wxID_ANY, wxT(""), wxDefaultPosition,
+                                            wxDLG_UNIT(m_panelGeneral, wxSize(-1, -1)), 0);
+    m_textCtrlExcludeFiles->SetToolTip(_("Files matching this pattern will not be\ndisplayed in the tree view"));
+#if wxVERSION_NUMBER >= 3000
+    m_textCtrlExcludeFiles->SetHint(wxT(""));
+#endif
+
+    flexGridSizer33->Add(m_textCtrlExcludeFiles, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+
     m_panelBuild =
         new wxPanel(m_notebook, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_notebook, wxSize(-1, -1)), wxTAB_TRAVERSAL);
     m_notebook->AddPage(m_panelBuild, _("Build"), false);
@@ -303,14 +359,16 @@ FSConfigPageBase::FSConfigPageBase(wxWindow* parent, wxWindowID id, const wxPoin
 
     boxSizer30->Add(flexGridSizer123, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
 
-    m_staticText125 = new wxStaticText(m_panelBuild, wxID_ANY, _("Output syntax:"), wxDefaultPosition,
+    m_staticText125 = new wxStaticText(m_panelBuild, wxID_ANY, _("Tool chain:"), wxDefaultPosition,
                                        wxDLG_UNIT(m_panelBuild, wxSize(-1, -1)), 0);
+    m_staticText125->SetToolTip(_("Select the toolchain to use"));
 
     flexGridSizer123->Add(m_staticText125, 0, wxALL | wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
 
     wxArrayString m_choiceCompilerArr;
     m_choiceCompiler = new wxChoice(m_panelBuild, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panelBuild, wxSize(-1, -1)),
                                     m_choiceCompilerArr, 0);
+    m_choiceCompiler->SetToolTip(_("Select the toolchain to use"));
 
     flexGridSizer123->Add(m_choiceCompiler, 0, wxALL | wxEXPAND, WXC_FROM_DIP(5));
 
