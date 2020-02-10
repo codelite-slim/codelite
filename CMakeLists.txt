@@ -215,7 +215,7 @@ if(ENABLE_SFTP MATCHES 0)
 endif (ENABLE_SFTP MATCHES 0)
 
 if(MAKE_RPM_SLIM MATCHES 1)
-    set( WITH_SFTP 0 )
+    set( WITH_SFTP 1 )
 endif()
 
 unset(ENABLE_SFTP CACHE)
@@ -623,7 +623,7 @@ if(NOT NO_CORE_PLUGINS)
     add_subdirectory(Tail)
     add_subdirectory(EditorConfigPlugin)
     add_subdirectory(LanguageServer)
-    add_subdirectory(wxcrafter)
+    add_subdirectory(Docker)
     
     if (WITH_SFTP)
         add_subdirectory(SFTP)
