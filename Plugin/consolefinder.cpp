@@ -106,7 +106,7 @@ wxString ConsoleFinder::GetConsoleTty(int ConsolePid)
         // by seaching the output of "ps x -o tty,pid,command" command.
         // The output of ps looks like:
         // TT       PID   COMMAND
-        // pts/0    13342 /bin/sh ./run.sh
+        // pts/0    13342 /bin/bash ./run.sh
         // pts/0    13343 /home/pecanpecan/devel/trunk/src/devel/codeblocks
         // pts/0    13361 /usr/bin/gdb -nx -fullname -quiet -args ./conio
         // pts/0    13362 xterm -font -*-*-*-*-*-*-20-*-*-*-*-*-*-* -T Program Console -e sleep 93343
@@ -138,35 +138,3 @@ bool ConsoleFinder::FindConsole(const wxString& title, wxString& consoleName)
     return false;
 }
 
-wxString ConsoleFinder::GetConsoleName()
-{
-    wxString cmd;
-#ifdef __WXMSW__
-    cmd = wxGetenv(wxT("COMSPEC"));
-    if(cmd.IsEmpty()) {
-        cmd = wxT("CMD.EXE");
-    }
-#else // non-windows
-    // try to locate the default terminal
-    wxString terminal;
-    wxString where;
-    if(ExeLocator::Locate(wxT("gnome-terminal"), where)) {
-        terminal = wxT("gnome-terminal -e ");
-    } else if(ExeLocator::Locate(wxT("konsole"), where)) {
-        terminal = wxT("konsole");
-    } else if(ExeLocator::Locate(wxT("terminal"), where)) {
-        terminal = wxT("terminal -e");
-    } else if(ExeLocator::Locate(wxT("lxterminal"), where)) {
-        terminal = wxT("lxterminal -e");
-    } else if(ExeLocator::Locate(wxT("xterm"), where)) {
-        terminal = wxT("xterm -e ");
-    }
-
-    if(cmd.IsEmpty()) {
-        cmd = wxT("xterm -e ");
-    }
-
-    cmd = terminal;
-#endif
-    return cmd;
-}

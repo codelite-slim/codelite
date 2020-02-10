@@ -968,7 +968,6 @@ void clMainFrame::Initialize(bool loadLastSession)
 
     // validate the frame loaded pos & size
     if(inf.GetFramePosition().x < 0 || inf.GetFramePosition().x > screenW) { inf.SetFramePosition(wxPoint(30, 3)); }
-
     if(inf.GetFramePosition().y < 0 || inf.GetFramePosition().y > screenH) { inf.SetFramePosition(wxPoint(30, 3)); }
 
     wxSize frameSize(inf.GetFrameSize());
@@ -985,8 +984,7 @@ void clMainFrame::Initialize(bool loadLastSession)
                                  wxDEFAULT_FRAME_STYLE | wxNO_FULL_REPAINT_ON_RESIZE);
     m_theFrame->m_frameGeneralInfo = inf;
     m_theFrame->m_loadLastSession = loadLastSession;
-    m_theFrame->Maximize(m_theFrame->m_frameGeneralInfo.GetFlags() & CL_MAXIMIZE_FRAME ? true : false);
-
+    m_theFrame->Maximize(m_theFrame->m_frameGeneralInfo.GetFlags() & CL_MAXIMIZE_FRAME);
     // Create the default welcome page
     m_theFrame->CreateWelcomePage();
 
@@ -2484,9 +2482,6 @@ void clMainFrame::OnCleanProject(wxCommandEvent& event)
     buildEvent.SetKind("clean");
     if(EventNotifier::Get()->ProcessEvent(buildEvent)) { return; }
 
-    wxString conf, projectName;
-    projectName = ManagerST::Get()->GetActiveProjectName();
-
     QueueCommand buildInfo(QueueCommand::kClean);
     ManagerST::Get()->PushQueueCommand(buildInfo);
     ManagerST::Get()->ProcessCommandQueue();
@@ -3284,6 +3279,7 @@ void clMainFrame::CompleteInitialization()
         clConfig::Get().Write("ColoursAdjusted", true);
     }
     MSWSetWindowDarkTheme(this);
+    if(m_frameGeneralInfo.GetFlags() & CL_FULLSCREEN) { CallAfter(&clMainFrame::DoFullscreen, true); }
 }
 
 void clMainFrame::OnAppActivated(wxActivateEvent& e)
@@ -4258,11 +4254,10 @@ void clMainFrame::OnShowFullScreen(wxCommandEvent& e)
     wxUnusedVar(e);
 
     if(IsFullScreen()) {
-        ShowFullScreen(false);
+        DoFullscreen(false);
 
     } else {
-
-        ShowFullScreen(true, wxFULLSCREEN_NOCAPTION | wxFULLSCREEN_NOBORDER);
+        DoFullscreen(true);
 
         // Re-apply the menu accelerators
         ManagerST::Get()->UpdateMenuAccelerators();
@@ -4385,6 +4380,7 @@ bool clMainFrame::SaveLayoutAndSession()
     EditorConfigST::Get()->Begin();
 
     SetFrameFlag(IsMaximized(), CL_MAXIMIZE_FRAME);
+    SetFrameFlag(IsFullScreen(), CL_FULLSCREEN);
     EditorConfigST::Get()->WriteObject(wxT("GeneralInfo"), &m_frameGeneralInfo);
     EditorConfigST::Get()->SetInteger(wxT("ShowNavBar"), m_mainBook->IsNavBarShown() ? 1 : 0);
     GetWorkspacePane()->SaveWorkspaceViewTabOrder();
@@ -5801,4 +5797,9 @@ void clMainFrame::OnReportIssue(wxCommandEvent& event)
 {
     wxUnusedVar(event);
     ::wxLaunchDefaultBrowser("https://github.com/eranif/codelite/issues");
+}
+
+void clMainFrame::DoFullscreen(bool b)
+{
+    ShowFullScreen(b, wxFULLSCREEN_NOMENUBAR | wxFULLSCREEN_NOTOOLBAR | wxFULLSCREEN_NOBORDER | wxFULLSCREEN_NOCAPTION);
 }

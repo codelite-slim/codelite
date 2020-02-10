@@ -1,12 +1,12 @@
 #ifndef LANGUAGESERVERENTRY_H
 #define LANGUAGESERVERENTRY_H
 
+#include "LSPNetwork.h"
+#include "cl_config.h"
+#include <map>
 #include <vector>
 #include <wx/string.h>
-#include "cl_config.h"
 #include <wxStringHash.h>
-#include "LSPNetwork.h"
-#include <map>
 
 class LanguageServerEntry
 {
@@ -92,6 +92,7 @@ public:
     }
     const wxString& GetName() const { return m_name; }
     eNetworkType GetNetType() const;
+    bool IsAutoRestart() const;
 };
 
 #endif // LANGUAGESERVERENTRY_H

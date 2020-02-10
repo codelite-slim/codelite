@@ -22,12 +22,12 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
+#include "clThemeUpdater.h"
 #include "drawingutils.h"
 #include "windowstack.h"
 #include <algorithm>
 #include <wx/dcbuffer.h>
 #include <wx/wupdlock.h>
-#include "clThemeUpdater.h"
 
 WindowStack::WindowStack(wxWindow* parent, wxWindowID id)
     : wxWindow(parent, id)
@@ -110,7 +110,7 @@ void WindowStack::DoSelect(wxWindow* win)
     win->Show();
     m_activeWin = win;
     // Hide the rest
-    CallAfter(&WindowStack::DoHideNoActiveWindows);
+    DoHideNoActiveWindows();
 }
 
 void WindowStack::OnSize(wxSizeEvent& e)

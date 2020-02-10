@@ -20,14 +20,12 @@ void LanguageServerEntry::FromJSON(const JSONItem& json)
     m_connectionString = json.namedObject("connectionString").toString("stdio");
     m_priority = json.namedObject("priority").toInt(m_priority);
     m_disaplayDiagnostics = json.namedObject("displayDiagnostics").toBool(m_disaplayDiagnostics); // defaults to true
-    
+
     // we no longer are using exepath + args, instead a single "command" is used
     wxString commandDefault = m_exepath;
     if(!commandDefault.IsEmpty()) {
         ::WrapWithQuotes(commandDefault);
-        if(!m_args.empty()) {
-            commandDefault << " " << m_args;
-        }
+        if(!m_args.empty()) { commandDefault << " " << m_args; }
     }
     m_command = json.namedObject("command").toString(commandDefault);
     m_unimplementedMethods.clear();
@@ -50,6 +48,7 @@ JSONItem LanguageServerEntry::ToJSON() const
     json.addProperty("priority", m_priority);
     json.addProperty("displayDiagnostics", m_disaplayDiagnostics);
     json.addProperty("command", m_command);
+
     wxArrayString methods;
     methods.Alloc(m_unimplementedMethods.size());
     for(const wxString& methodName : m_unimplementedMethods) {
@@ -75,15 +74,17 @@ bool LanguageServerEntry::IsValid() const
 {
     bool is_valid = true;
     if(m_name.IsEmpty()) { return false; }
-
-    wxFileName exePath(m_exepath);
-    if(exePath.IsAbsolute() && !exePath.FileExists()) { return false; }
-    wxFileName wd(m_workingDirectory, "");
-    if(wd.IsAbsolute() && !wd.DirExists()) { return false; }
     return true;
 }
 
 void LanguageServerEntry::AddUnImplementedMethod(const wxString& methodName)
 {
     m_unimplementedMethods.insert(methodName);
+}
+
+bool LanguageServerEntry::IsAutoRestart() const
+{
+    wxString command = GetCommand();
+    command.Trim().Trim(false);
+    return !command.IsEmpty();
 }

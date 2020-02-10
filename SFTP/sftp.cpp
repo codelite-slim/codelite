@@ -23,18 +23,22 @@
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
+#include "JSON.h"
 #include "SFTPBrowserDlg.h"
 #include "SFTPSettingsDialog.h"
 #include "SFTPStatusPage.h"
 #include "SFTPTreeView.h"
 #include "SSHAccountManagerDlg.h"
+#include "clFilesCollector.h"
 #include "cl_command_event.h"
+#include "cl_standard_paths.h"
 #include "detachedpanesinfo.h"
 #include "dockablepane.h"
 #include "event_notifier.h"
 #include "file_logger.h"
 #include "fileutils.h"
-#include "JSON.h"
+#include "globals.h"
+#include "procutils.h"
 #include "sftp.h"
 #include "sftp_settings.h"
 #include "sftp_worker_thread.h"
@@ -44,7 +48,6 @@
 #include <wx/menu.h>
 #include <wx/msgdlg.h>
 #include <wx/xrc/xmlres.h>
-#include <algorithm>
 
 static SFTP* thePlugin = NULL;
 const wxEventType wxEVT_SFTP_OPEN_SSH_ACCOUNT_MANAGER = ::wxNewEventType();
@@ -67,7 +70,9 @@ const wxEventType wxEVT_SFTP_DISABLE_WORKSPACE_MIRRORING = ::wxNewEventType();
 // Define the plugin entry point
 CL_PLUGIN_API IPlugin* CreatePlugin(IManager* manager)
 {
-    if(thePlugin == 0) { thePlugin = new SFTP(manager); }
+    if(thePlugin == 0) {
+        thePlugin = new SFTP(manager);
+    }
     return thePlugin;
 }
 
@@ -148,6 +153,8 @@ SFTP::SFTP(IManager* manager)
     SFTPWorkerThread::Instance()->SetNotifyWindow(m_outputPane);
     SFTPWorkerThread::Instance()->SetSftpPlugin(this);
     SFTPWorkerThread::Instance()->Start();
+
+    EventNotifier::Get()->Bind(wxEVT_INIT_DONE, &SFTP::OnInitDone, this);
 }
 
 SFTP::~SFTP() {}
@@ -239,7 +246,7 @@ void SFTP::UnPlug()
     EventNotifier::Get()->Unbind(wxEVT_SFTP_SAVE_FILE, &SFTP::OnSaveFile, this);
     EventNotifier::Get()->Unbind(wxEVT_SFTP_RENAME_FILE, &SFTP::OnRenameFile, this);
     EventNotifier::Get()->Unbind(wxEVT_SFTP_DELETE_FILE, &SFTP::OnDeleteFile, this);
-
+    EventNotifier::Get()->Unbind(wxEVT_INIT_DONE, &SFTP::OnInitDone, this);
     m_tabToggler.reset(NULL);
 
     // Delete the temporary files
@@ -345,7 +352,9 @@ void SFTP::FileDownloadedSuccessfully(const SFTPClientData& cd)
         SFTPClientData* pcd = new SFTPClientData(cd);
         editor->SetClientData("sftp", pcd);
         // set the line number
-        if(cd.GetLineNumber() != wxNOT_FOUND) { editor->GetCtrl()->GotoLine(cd.GetLineNumber()); }
+        if(cd.GetLineNumber() != wxNOT_FOUND) {
+            editor->GetCtrl()->GotoLine(cd.GetLineNumber());
+        }
     }
 
     // Now that the file was downloaded, update the file permissions
@@ -359,7 +368,9 @@ void SFTP::OpenWithDefaultApp(const wxString& localFileName) { ::wxLaunchDefault
 
 void SFTP::AddRemoteFile(const RemoteFileInfo& remoteFile)
 {
-    if(m_remoteFiles.count(remoteFile.GetLocalFile())) { m_remoteFiles.erase(remoteFile.GetLocalFile()); }
+    if(m_remoteFiles.count(remoteFile.GetLocalFile())) {
+        m_remoteFiles.erase(remoteFile.GetLocalFile());
+    }
     m_remoteFiles.insert(std::make_pair(remoteFile.GetLocalFile(), remoteFile));
 }
 
@@ -389,7 +400,8 @@ void SFTP::MSWInitiateConnection()
     SFTPSettings settings;
     settings.Load();
     const SSHAccountInfo::Vect_t& accounts = settings.GetAccounts();
-    if(accounts.empty()) return;
+    if(accounts.empty())
+        return;
     const SSHAccountInfo& account = accounts.at(0);
     SFTPWorkerThread::Instance()->Add(new SFTPThreadRequet(account));
 #endif
@@ -404,7 +416,8 @@ void SFTP::OnSettings(wxCommandEvent& e)
 
 void SFTP::DoFileSaved(const wxString& filename)
 {
-    if(filename.IsEmpty()) return;
+    if(filename.IsEmpty())
+        return;
 
     // Check to see if this file is part of a remote files managed by our plugin
     if(m_remoteFiles.count(filename)) {
@@ -419,7 +432,9 @@ void SFTP::DoFileSaved(const wxString& filename)
         // ----------------------------------------------------------------------------------------------
 
         wxString remoteFile = GetRemotePath(filename);
-        if(remoteFile.IsEmpty()) { return; }
+        if(remoteFile.IsEmpty()) {
+            return;
+        }
 
         SFTPSettings settings;
         settings.Load();
@@ -460,7 +475,9 @@ void SFTP::OnFileRenamed(clFileSystemEvent& e)
     // Convert local paths to remote paths
     wxString remoteFile = GetRemotePath(e.GetPath());
     wxString remoteNew = GetRemotePath(e.GetNewpath());
-    if(remoteFile.IsEmpty() || remoteNew.IsEmpty()) { return; }
+    if(remoteFile.IsEmpty() || remoteNew.IsEmpty()) {
+        return;
+    }
 
     SFTPSettings settings;
     settings.Load();
@@ -537,7 +554,9 @@ void SFTP::OnDeleteFile(clSFTPEvent& e)
 void SFTP::DoFileDeleted(const wxString& filepath)
 {
     wxString remoteFile = GetRemotePath(filepath);
-    if(remoteFile.IsEmpty()) { return; }
+    if(remoteFile.IsEmpty()) {
+        return;
+    }
 
     SFTPSettings settings;
     settings.Load();
@@ -561,7 +580,9 @@ void SFTP::DoFileDeleted(const wxString& filepath)
 
 wxString SFTP::GetRemotePath(const wxString& localpath) const
 {
-    if(!IsCxxWorkspaceMirrorEnabled()) { return ""; }
+    if(!IsCxxWorkspaceMirrorEnabled()) {
+        return "";
+    }
     wxFileName file(localpath);
     file.MakeRelativeTo(m_workspaceFile.GetPath());
     file.MakeAbsolute(wxFileName(m_workspaceSettings.GetRemoteWorkspacePath(), wxPATH_UNIX).GetPath());
@@ -587,3 +608,5 @@ void SFTP::OpenFile(const wxString& remotePath, int lineNumber)
         AddRemoteFile(remoteFile);
     }
 }
+
+void SFTP::OnInitDone(wxCommandEvent& event) { event.Skip(); }

@@ -45,6 +45,7 @@
     </Plugin>
   </Plugins>
   <VirtualDirectory Name="LSP">
+    <File Name="LSP/IPathConverter.hpp"/>
     <File Name="LSP/SignatureHelpRequest.cpp"/>
     <File Name="LSP/SignatureHelpRequest.h"/>
     <File Name="LSP/GotoImplementationRequest.cpp"/>
@@ -392,6 +393,10 @@
     <File Name="cl_standard_paths.cpp"/>
   </VirtualDirectory>
   <VirtualDirectory Name="ssh">
+    <File Name="clSSHAgent.cpp"/>
+    <File Name="clSSHAgent.hpp"/>
+    <File Name="SFTPClientData.cpp"/>
+    <File Name="SFTPClientData.hpp"/>
     <File Name="clSSHChannel.cpp"/>
     <File Name="clSSHChannel.h"/>
     <File Name="cl_sftp.cpp"/>

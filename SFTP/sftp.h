@@ -34,33 +34,10 @@
 #include "plugin.h"
 #include "remote_file_info.h"
 #include "sftp_workspace_settings.h"
+#include <SFTPClientData.hpp>
 
 class SFTPStatusPage;
 class SFTPTreeView;
-
-class SFTPClientData : public wxClientData
-{
-    wxString localPath;
-    wxString remotePath;
-    size_t permissions;
-    int lineNumber = wxNOT_FOUND;
-
-public:
-    SFTPClientData()
-        : permissions(0)
-    {
-    }
-    virtual ~SFTPClientData() {}
-
-    void SetLocalPath(const wxString& localPath) { this->localPath = localPath; }
-    void SetRemotePath(const wxString& remotePath) { this->remotePath = remotePath; }
-    const wxString& GetLocalPath() const { return localPath; }
-    const wxString& GetRemotePath() const { return remotePath; }
-    void SetPermissions(size_t permissions) { this->permissions = permissions; }
-    size_t GetPermissions() const { return permissions; }
-    void SetLineNumber(int lineNumber) { this->lineNumber = lineNumber; }
-    int GetLineNumber() const { return lineNumber; }
-};
 
 class SFTP : public IPlugin
 {
@@ -70,6 +47,7 @@ class SFTP : public IPlugin
     SFTPTreeView* m_treeView;
     RemoteFileInfo::Map_t m_remoteFiles;
     clTabTogglerHelper::Ptr_t m_tabToggler;
+    long m_sshAgentPID = wxNOT_FOUND;
 
 public:
     SFTP(IManager* manager);
@@ -98,9 +76,8 @@ protected:
     void OnFileDeleted(clFileSystemEvent& e);
     void OnEditorClosed(wxCommandEvent& e);
     void MSWInitiateConnection();
-
+    void OnInitDone(wxCommandEvent& event);
     void DoFileSaved(const wxString& filename);
-
     bool IsWorkspaceOpened() const { return m_workspaceFile.IsOk(); }
     void DoSaveRemoteFile(const RemoteFileInfo& remoteFile);
     bool IsPaneDetached(const wxString& name) const;

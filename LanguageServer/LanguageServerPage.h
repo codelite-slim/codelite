@@ -15,6 +15,8 @@ public:
     LanguageServerEntry GetData() const;
 
 protected:
+    virtual void OnBrowseWD(wxCommandEvent& event);
+    virtual void OnCommandUI(wxUpdateUIEvent& event);
     virtual void OnSuggestLanguages(wxCommandEvent& event);
 };
 #endif // LANGUAGESERVERPAGE_H
