@@ -24,9 +24,11 @@
 //////////////////////////////////////////////////////////////////////////////
 #include "DefaultWorkspacePage.h"
 #include "clFileOrFolderDropTarget.h"
+#include "clToolBarButtonBase.h"
 #include "clTreeCtrlPanel.h"
 #include "clWorkspaceView.h"
 #include "configuration_manager_dlg.h"
+#include "drawingutils.h"
 #include "editor_config.h"
 #include "event_notifier.h"
 #include "fileview.h"
@@ -42,11 +44,9 @@
 #include <algorithm>
 #include <wx/button.h>
 #include <wx/combobox.h>
+#include <wx/dcbuffer.h>
 #include <wx/sizer.h>
 #include <wx/xrc/xmlres.h>
-#include <wx/dcbuffer.h>
-#include "drawingutils.h"
-#include <wx/dcbuffer.h>
 
 static bool SortPinnedProjects(clRowEntry* a, clRowEntry* b)
 {
@@ -87,7 +87,9 @@ WorkspaceTab::WorkspaceTab(wxWindow* parent, const wxString& caption)
         event.Skip();
         bool useCustomColour = clConfig::Get().Read("UseCustomBaseColour", false);
         m_bgColour = DrawingUtils::GetPanelBgColour();
-        if(useCustomColour) { m_bgColour = clConfig::Get().Read("BaseColour", m_bgColour); }
+        if(useCustomColour) {
+            m_bgColour = clConfig::Get().Read("BaseColour", m_bgColour);
+        }
         Refresh();
         m_panelCxx->Refresh();
     });
@@ -123,7 +125,13 @@ WorkspaceTab::~WorkspaceTab()
                          wxCommandEventHandler(WorkspaceTab::OnConfigurationManager), NULL, this);
     wxTheApp->Disconnect(XRCID("configuration_manager"), wxEVT_UPDATE_UI,
                          wxUpdateUIEventHandler(WorkspaceTab::OnProjectSettingsUI), NULL, this);
+
     EventNotifier::Get()->Unbind(wxEVT_WORKSPACE_BUILD_CONFIG_CHANGED, &WorkspaceTab::OnConfigChanged, this);
+    EventNotifier::Get()->Unbind(wxEVT_BUILD_STARTED, &WorkspaceTab::OnBuildStarted, this);
+    EventNotifier::Get()->Unbind(wxEVT_BUILD_ENDED, &WorkspaceTab::OnBuildEnded, this);
+    EventNotifier::Get()->Unbind(wxEVT_PROGRAM_STARTED, &WorkspaceTab::OnProgramStarted, this);
+    EventNotifier::Get()->Unbind(wxEVT_PROGRAM_TERMINATED, &WorkspaceTab::OnProgramStopped, this);
+
     m_toolbar580->Unbind(wxEVT_TOOL, &WorkspaceTab::OnCollapseAll, this, XRCID("ID_TOOL_COLLAPSE_ALL"));
     m_toolbar580->Unbind(wxEVT_UPDATE_UI, &WorkspaceTab::OnCollapseAllUI, this, XRCID("ID_TOOL_COLLAPSE_ALL"));
     m_toolbar580->Unbind(wxEVT_TOOL, &WorkspaceTab::OnLinkEditor, this, XRCID("ID_TOOL_LINK_EDITOR"));
@@ -133,6 +141,10 @@ WorkspaceTab::~WorkspaceTab()
                          XRCID("ID_TOOL_ACTIVE_PROJECT_SETTINGS"));
     m_toolbar580->Unbind(wxEVT_TOOL, &WorkspaceTab::OnGoHome, this, XRCID("ID_TOOL_GOTO_ACTIVE_PROJECT"));
     m_toolbar580->Unbind(wxEVT_UPDATE_UI, &WorkspaceTab::OnGoHomeUI, this, XRCID("ID_TOOL_GOTO_ACTIVE_PROJECT"));
+
+    m_toolbar580->Unbind(wxEVT_TOOL, &WorkspaceTab::OnBuildActiveProject, this, XRCID("ID_BUILD_PROJECT"));
+    m_toolbar580->Unbind(wxEVT_TOOL_DROPDOWN, &WorkspaceTab::OnBuildActiveProjectDropdown, this,
+                         XRCID("ID_BUILD_PROJECT"));
 }
 
 void WorkspaceTab::CreateGUIControls()
@@ -157,12 +169,10 @@ void WorkspaceTab::CreateGUIControls()
                             "of the selected item in the tree"),
                           bmps->LoadBitmap("cog"));
     m_toolbar580->AddSpacer();
-    m_toolbar580->AddTool(XRCID("execute_no_debug"), _("Run Active Project"), bmps->LoadBitmap("execute"),
-                          _("Run Active Project"));
-    m_toolbar580->AddTool(XRCID("build_active_project"), _("Build Active Project"), bmps->LoadBitmap("build"),
+    m_toolbar580->AddTool(XRCID("ID_BUILD_PROJECT"), _("Build Active Project"), bmps->LoadBitmap("build"),
                           _("Build Active Project"), wxITEM_DROPDOWN);
-    m_toolbar580->AddTool(XRCID("stop_active_project_build"), _("Stop Current Build"), bmps->LoadBitmap("stop"),
-                          _("Stop Current Build"));
+    m_toolbar580->AddTool(XRCID("ID_EXECUTE_NO_DEBUG"), _("Run Active Project"), bmps->LoadBitmap("execute"),
+                          _("Run Active Project"));
     m_toolbar580->Realize();
 }
 
@@ -221,19 +231,30 @@ void WorkspaceTab::ConnectEvents()
                        XRCID("ID_TOOL_ACTIVE_PROJECT_SETTINGS"));
     m_toolbar580->Bind(wxEVT_TOOL, &WorkspaceTab::OnGoHome, this, XRCID("ID_TOOL_GOTO_ACTIVE_PROJECT"));
     m_toolbar580->Bind(wxEVT_UPDATE_UI, &WorkspaceTab::OnGoHomeUI, this, XRCID("ID_TOOL_GOTO_ACTIVE_PROJECT"));
+    EventNotifier::Get()->Bind(wxEVT_BUILD_STARTED, &WorkspaceTab::OnBuildStarted, this);
+    EventNotifier::Get()->Bind(wxEVT_BUILD_ENDED, &WorkspaceTab::OnBuildEnded, this);
+    EventNotifier::Get()->Bind(wxEVT_PROGRAM_STARTED, &WorkspaceTab::OnProgramStarted, this);
+    EventNotifier::Get()->Bind(wxEVT_PROGRAM_TERMINATED, &WorkspaceTab::OnProgramStopped, this);
+    m_toolbar580->Bind(wxEVT_TOOL, &WorkspaceTab::OnExecuteNoDebug, this, XRCID("ID_EXECUTE_NO_DEBUG"));
+    m_toolbar580->Bind(wxEVT_TOOL, &WorkspaceTab::OnBuildActiveProject, this, XRCID("ID_BUILD_PROJECT"));
+    m_toolbar580->Bind(wxEVT_TOOL_DROPDOWN, &WorkspaceTab::OnBuildActiveProjectDropdown, this,
+                       XRCID("ID_BUILD_PROJECT"));
 }
 
 void WorkspaceTab::OnLinkEditor(wxCommandEvent& e)
 {
     m_isLinkedToEditor = e.IsChecked();
     EditorConfigST::Get()->SetInteger(wxT("LinkWorkspaceViewToEditor"), m_isLinkedToEditor ? 1 : 0);
-    if(m_isLinkedToEditor) { OnActiveEditorChanged(e); }
+    if(m_isLinkedToEditor) {
+        OnActiveEditorChanged(e);
+    }
 }
 
 void WorkspaceTab::OnCollapseAll(wxCommandEvent& e)
 {
     wxUnusedVar(e);
-    if(!m_fileView->GetRootItem().IsOk()) return;
+    if(!m_fileView->GetRootItem().IsOk())
+        return;
     m_fileView->CollapseAll();
 
     // count will probably be 0 below, so ensure we can at least see the root item
@@ -246,7 +267,9 @@ void WorkspaceTab::OnCollapseAll(wxCommandEvent& e)
     size_t count = m_fileView->GetSelections(arr);
     if(count == 1) {
         wxTreeItemId sel = arr.Item(0);
-        if(sel.IsOk()) { m_fileView->EnsureVisible(sel); }
+        if(sel.IsOk()) {
+            m_fileView->EnsureVisible(sel);
+        }
     }
 }
 
@@ -256,7 +279,8 @@ void WorkspaceTab::OnGoHome(wxCommandEvent& e)
 {
     wxUnusedVar(e);
     wxString activeProject = ManagerST::Get()->GetActiveProjectName();
-    if(activeProject.IsEmpty()) return;
+    if(activeProject.IsEmpty())
+        return;
     m_fileView->ExpandToPath(activeProject, wxFileName());
 
     wxArrayTreeItemIds arr;
@@ -264,7 +288,8 @@ void WorkspaceTab::OnGoHome(wxCommandEvent& e)
 
     if(count == 1) {
         wxTreeItemId sel = arr.Item(0);
-        if(sel.IsOk() && m_fileView->ItemHasChildren(sel)) m_fileView->Expand(sel);
+        if(sel.IsOk() && m_fileView->ItemHasChildren(sel))
+            m_fileView->Expand(sel);
     }
     ManagerST::Get()->ShowWorkspacePane(m_caption);
 }
@@ -359,7 +384,9 @@ void WorkspaceTab::OnProjectAdded(clCommandEvent& e)
     e.Skip();
     const wxString& projName = e.GetString();
     m_fileView->BuildTree();
-    if(!projName.IsEmpty()) { m_fileView->ExpandToPath(projName, wxFileName()); }
+    if(!projName.IsEmpty()) {
+        m_fileView->ExpandToPath(projName, wxFileName());
+    }
     DoUpdateChoiceWithProjects();
     SendCmdEvent(wxEVT_FILE_VIEW_REFRESHED);
 }
@@ -443,7 +470,9 @@ void WorkspaceTab::OpenProjectSettings(const wxString& project)
     // Allow plugins to process this event first
     clCommandEvent openEvent(wxEVT_CMD_OPEN_PROJ_SETTINGS);
     openEvent.SetString(project);
-    if(EventNotifier::Get()->ProcessEvent(openEvent)) { return; }
+    if(EventNotifier::Get()->ProcessEvent(openEvent)) {
+        return;
+    }
 
     // open the project properties dialog
     BuildMatrixPtr matrix = ManagerST::Get()->GetWorkspaceBuildMatrix();
@@ -468,7 +497,9 @@ void WorkspaceTab::OpenProjectSettings(const wxString& project)
 
     // Mark this project as modified
     ProjectPtr proj = ManagerST::Get()->GetProject(projectName);
-    if(proj) { proj->SetModified(true); }
+    if(proj) {
+        proj->SetModified(true);
+    }
 }
 
 void WorkspaceTab::ProjectSettingsDlgClosed() { m_dlg = NULL; }
@@ -484,7 +515,8 @@ void WorkspaceTab::OnActiveProjectChanged(clProjectSettingsEvent& e)
 void WorkspaceTab::DoGoHome()
 {
     wxString activeProject = ManagerST::Get()->GetActiveProjectName();
-    if(activeProject.IsEmpty()) return;
+    if(activeProject.IsEmpty())
+        return;
     m_fileView->ExpandToPath(activeProject, wxFileName());
 
     wxArrayTreeItemIds arr;
@@ -492,7 +524,8 @@ void WorkspaceTab::DoGoHome()
 
     if(count == 1) {
         wxTreeItemId sel = arr.Item(0);
-        if(sel.IsOk() && m_fileView->ItemHasChildren(sel)) m_fileView->Expand(sel);
+        if(sel.IsOk() && m_fileView->ItemHasChildren(sel))
+            m_fileView->Expand(sel);
     }
     // ManagerST::Get()->ShowWorkspacePane(m_caption);
 }
@@ -506,7 +539,9 @@ void WorkspaceTab::DoConfigChanged(const wxString& newConfigName)
 
     // Set the focus to the active editor if any
     clEditor* editor = clMainFrame::Get()->GetMainBook()->GetActiveEditor();
-    if(editor) { editor->SetActive(); }
+    if(editor) {
+        editor->SetActive();
+    }
 
     ManagerST::Get()->UpdateParserPaths(true);
 }
@@ -547,14 +582,16 @@ void WorkspaceTab::LoadCxxPinnedProjects()
     // We got the pinned projects loaded, update the view
     if(m_cxxPinnedProjects.empty()) {
         // hide the to view
-        if(m_splitter->IsSplit()) { m_splitter->Unsplit(m_splitterPagePinnedProjects); }
+        if(m_splitter->IsSplit()) {
+            m_splitter->Unsplit(m_splitterPagePinnedProjects);
+        }
     } else {
         // ensure the view is visible
         if(!m_splitter->IsSplit()) {
             m_splitter->SplitHorizontally(m_splitterPagePinnedProjects, m_splitterPageTreeView, 150);
             m_splitter->CallAfter(&wxSplitterWindow::UpdateSize);
         }
-        
+
         m_dvListCtrlPinnedProjects->DeleteAllItems();
         m_dvListCtrlPinnedProjects->SetSortFunction(nullptr);
         for(const wxString& project : m_cxxPinnedProjects) {
@@ -575,7 +612,9 @@ void WorkspaceTab::SaveCxxPinnedProjects()
 void WorkspaceTab::OnPinnedCxxProjectContextMenu(wxDataViewEvent& event)
 {
     wxDataViewItem item = event.GetItem();
-    if(!item.IsOk()) { return; }
+    if(!item.IsOk()) {
+        return;
+    }
     SyncPinnedProjectsView(event.GetItem());
 
     wxString project = m_dvListCtrlPinnedProjects->GetItemText(item);
@@ -591,7 +630,9 @@ void WorkspaceTab::OnPinnedCxxProjectSelected(wxDataViewEvent& event)
 
 void WorkspaceTab::AddPinnedProject(const wxString& project)
 {
-    if(m_cxxPinnedProjects.Index(project) != wxNOT_FOUND) { return; }
+    if(m_cxxPinnedProjects.Index(project) != wxNOT_FOUND) {
+        return;
+    }
     m_cxxPinnedProjects.Add(project);
 
     // Store the pinned projehcts
@@ -603,7 +644,9 @@ void WorkspaceTab::AddPinnedProject(const wxString& project)
 
 void WorkspaceTab::SyncPinnedProjectsView(const wxDataViewItem& item)
 {
-    if(!item.IsOk()) { return; }
+    if(!item.IsOk()) {
+        return;
+    }
 
     wxString project = m_dvListCtrlPinnedProjects->GetItemText(item);
     m_fileView->ExpandToPath(project, wxFileName()); // Select the project
@@ -634,4 +677,90 @@ void WorkspaceTab::ShowPinnedProjectMenu(const wxString& project)
         }
     });
     m_dvListCtrlPinnedProjects->PopupMenu(&menu);
+}
+
+void WorkspaceTab::OnBuildStarted(clBuildEvent& event)
+{
+    event.Skip();
+    m_buildInProgress = true;
+    auto button = m_toolbar580->FindById(XRCID("ID_BUILD_PROJECT"));
+    if(button) {
+        button->SetBmp(clGetManager()->GetStdIcons()->LoadBitmap("stop"));
+        button->SetLabel(_("Stop Current Build"));
+        m_toolbar580->Refresh();
+    }
+}
+
+void WorkspaceTab::OnBuildEnded(clBuildEvent& event)
+{
+    event.Skip();
+    m_buildInProgress = false;
+    auto button = m_toolbar580->FindById(XRCID("ID_BUILD_PROJECT"));
+    if(button) {
+        button->SetBmp(clGetManager()->GetStdIcons()->LoadBitmap("build"));
+        button->SetLabel(_("Build Active Project"));
+        m_toolbar580->Refresh();
+    }
+}
+
+void WorkspaceTab::OnBuildActiveProject(wxCommandEvent& event)
+{
+    wxUnusedVar(event);
+    if(m_buildInProgress) {
+        wxCommandEvent stopEvent(wxEVT_TOOL, XRCID("stop_active_project_build"));
+        stopEvent.SetEventObject(m_toolbar580);
+        EventNotifier::Get()->TopFrame()->GetEventHandler()->AddPendingEvent(stopEvent);
+    } else {
+        wxCommandEvent buildEvent(wxEVT_TOOL, XRCID("build_active_project"));
+        buildEvent.SetEventObject(m_toolbar580);
+        EventNotifier::Get()->TopFrame()->GetEventHandler()->AddPendingEvent(buildEvent);
+    }
+}
+
+void WorkspaceTab::OnExecuteNoDebug(wxCommandEvent& event)
+{
+    wxUnusedVar(event);
+    if(!m_runInProgress) {
+        wxCommandEvent runEvent(wxEVT_TOOL, XRCID("execute_no_debug"));
+        runEvent.SetEventObject(m_toolbar580);
+        EventNotifier::Get()->TopFrame()->GetEventHandler()->AddPendingEvent(runEvent);
+    } else {
+        wxCommandEvent stopEvent(wxEVT_TOOL, XRCID("stop_executed_program"));
+        stopEvent.SetEventObject(m_toolbar580);
+        EventNotifier::Get()->TopFrame()->GetEventHandler()->AddPendingEvent(stopEvent);
+    }
+}
+
+void WorkspaceTab::OnBuildActiveProjectDropdown(wxCommandEvent& event)
+{
+    wxUnusedVar(event);
+    // we dont allow showing the dropdown during build process
+    if(m_buildInProgress) {
+        return;
+    }
+    clMainFrame::Get()->ShowBuildMenu(m_toolbar580, XRCID("ID_BUILD_PROJECT"));
+}
+
+void WorkspaceTab::OnProgramStarted(clExecuteEvent& event)
+{
+    event.Skip();
+    m_runInProgress = true;
+    auto button = m_toolbar580->FindById(XRCID("ID_EXECUTE_NO_DEBUG"));
+    if(button) {
+        button->SetBmp(clGetManager()->GetStdIcons()->LoadBitmap("stop"));
+        button->SetLabel(_("Stop running program"));
+        m_toolbar580->Refresh();
+    }
+}
+
+void WorkspaceTab::OnProgramStopped(clExecuteEvent& event)
+{
+    event.Skip();
+    m_runInProgress = false;
+    auto button = m_toolbar580->FindById(XRCID("ID_EXECUTE_NO_DEBUG"));
+    if(button) {
+        button->SetBmp(clGetManager()->GetStdIcons()->LoadBitmap("execute"));
+        button->SetLabel(_("Run active project"));
+        m_toolbar580->Refresh();
+    }
 }
