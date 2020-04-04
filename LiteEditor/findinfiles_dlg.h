@@ -7,6 +7,7 @@
 #ifndef _CODELITE_FORMBUILDER_FINDINFILES_DLG_BASE_CLASSES_H
 #define _CODELITE_FORMBUILDER_FINDINFILES_DLG_BASE_CLASSES_H
 
+// clang-format off
 #include <wx/settings.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/xrc/xh_bmp.h>
@@ -18,8 +19,10 @@
 #include <wx/stattext.h>
 #include <wx/combobox.h>
 #include <wx/arrstr.h>
+#include "clThemedComboBox.hpp"
 #include <wx/stc/stc.h>
 #include <wx/choice.h>
+#include "clThemedChoice.h"
 #include <wx/button.h>
 #include <wx/statline.h>
 #include <wx/checkbox.h>
@@ -40,20 +43,22 @@
 #define WXC_FROM_DIP(x) x
 #endif
 
+// clang-format on
+
 class FindInFilesDialogBase : public wxDialog
 {
 protected:
     wxPanel* m_panelMainPanel;
     wxStaticText* m_staticText1;
-    wxComboBox* m_findString;
+    clThemedComboBox* m_findString;
     wxStaticText* m_staticText102;
-    wxComboBox* m_replaceString;
+    clThemedComboBox* m_replaceString;
     wxStaticText* m_staticText3;
-    wxComboBox* m_fileTypes;
+    clThemedComboBox* m_fileTypes;
     wxStaticText* m_staticText2;
     wxStyledTextCtrl* m_stcPaths;
     wxStaticText* m_staticText5;
-    wxChoice* m_choiceEncoding;
+    clThemedChoice* m_choiceEncoding;
     wxButton* m_find;
     wxButton* m_replaceAll;
     wxButton* m_cancel;
@@ -66,6 +71,8 @@ protected:
     wxCheckBox* m_checkBoxSaveFilesBeforeSearching;
 
 protected:
+    virtual void OnFindEnter(wxCommandEvent& event) { event.Skip(); }
+    virtual void OnReplaceEnter(wxCommandEvent& event) { event.Skip(); }
     virtual void OnFind(wxCommandEvent& event) { event.Skip(); }
     virtual void OnFindWhatUI(wxUpdateUIEvent& event) { event.Skip(); }
     virtual void OnReplace(wxCommandEvent& event) { event.Skip(); }
@@ -75,15 +82,15 @@ protected:
 
 public:
     wxStaticText* GetStaticText1() { return m_staticText1; }
-    wxComboBox* GetFindString() { return m_findString; }
+    clThemedComboBox* GetFindString() { return m_findString; }
     wxStaticText* GetStaticText102() { return m_staticText102; }
-    wxComboBox* GetReplaceString() { return m_replaceString; }
+    clThemedComboBox* GetReplaceString() { return m_replaceString; }
     wxStaticText* GetStaticText3() { return m_staticText3; }
-    wxComboBox* GetFileTypes() { return m_fileTypes; }
+    clThemedComboBox* GetFileTypes() { return m_fileTypes; }
     wxStaticText* GetStaticText2() { return m_staticText2; }
     wxStyledTextCtrl* GetStcPaths() { return m_stcPaths; }
     wxStaticText* GetStaticText5() { return m_staticText5; }
-    wxChoice* GetChoiceEncoding() { return m_choiceEncoding; }
+    clThemedChoice* GetChoiceEncoding() { return m_choiceEncoding; }
     wxButton* GetFind() { return m_find; }
     wxButton* GetReplaceAll() { return m_replaceAll; }
     wxButton* GetCancel() { return m_cancel; }

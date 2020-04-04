@@ -108,8 +108,12 @@ protected:
     wxPanel* m_panelGeneral;
     wxStaticText* m_staticText109;
     wxFilePickerCtrl* m_filePickerExe;
+    wxStaticText* m_staticText191;
+    wxDirPickerCtrl* m_dirPickerWD;
     wxStaticText* m_staticText113;
     clThemedSTC* m_textCtrlArgs;
+    wxStaticText* m_staticText125;
+    clThemedChoice* m_choiceCompiler;
     wxStaticText* m_staticText179;
     clThemedChoice* m_choiceDebuggers;
     wxStaticText* m_staticText35;
@@ -117,8 +121,6 @@ protected:
     wxStaticText* m_staticText187;
     wxTextCtrl* m_textCtrlExcludeFiles;
     wxPanel* m_panelBuild;
-    wxStaticText* m_staticText125;
-    wxChoice* m_choiceCompiler;
     clThemedListCtrl* m_dvListCtrlTargets;
     wxButton* m_buttonNew;
     wxButton* m_buttonEdit;
@@ -153,8 +155,12 @@ protected:
 public:
     wxStaticText* GetStaticText109() { return m_staticText109; }
     wxFilePickerCtrl* GetFilePickerExe() { return m_filePickerExe; }
+    wxStaticText* GetStaticText191() { return m_staticText191; }
+    wxDirPickerCtrl* GetDirPickerWD() { return m_dirPickerWD; }
     wxStaticText* GetStaticText113() { return m_staticText113; }
     clThemedSTC* GetTextCtrlArgs() { return m_textCtrlArgs; }
+    wxStaticText* GetStaticText125() { return m_staticText125; }
+    clThemedChoice* GetChoiceCompiler() { return m_choiceCompiler; }
     wxStaticText* GetStaticText179() { return m_staticText179; }
     clThemedChoice* GetChoiceDebuggers() { return m_choiceDebuggers; }
     wxStaticText* GetStaticText35() { return m_staticText35; }
@@ -162,8 +168,6 @@ public:
     wxStaticText* GetStaticText187() { return m_staticText187; }
     wxTextCtrl* GetTextCtrlExcludeFiles() { return m_textCtrlExcludeFiles; }
     wxPanel* GetPanelGeneral() { return m_panelGeneral; }
-    wxStaticText* GetStaticText125() { return m_staticText125; }
-    wxChoice* GetChoiceCompiler() { return m_choiceCompiler; }
     clThemedListCtrl* GetDvListCtrlTargets() { return m_dvListCtrlTargets; }
     wxButton* GetButtonNew() { return m_buttonNew; }
     wxButton* GetButtonEdit() { return m_buttonEdit; }

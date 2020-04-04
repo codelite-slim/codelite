@@ -106,7 +106,7 @@ bool clSSH::AuthenticateServer(wxString& message)
 
     message.Clear();
 
-#if LIBSSH_VERSION_INT < SSH_VERSION_INT(0, 6, 1)
+#if LIBSSH_VERSION_INT < SSH_VERSION_INT(0, 6, 5)
     int hlen = 0;
     hlen = ssh_get_pubkey_hash(m_session, &hash);
     if(hlen < 0) {
@@ -115,7 +115,11 @@ bool clSSH::AuthenticateServer(wxString& message)
 #else
     size_t hlen = 0;
     ssh_key key = NULL;
+#if LIBSSH_VERSION_INT >= SSH_VERSION_INT(0, 8, 0)
     ssh_get_server_publickey(m_session, &key);
+#else
+    ssh_get_publickey(m_session, &key);
+#endif
     ssh_get_publickey_hash(key, SSH_PUBLICKEY_HASH_SHA1, &hash, &hlen);
     if(hlen == 0) {
         throw clException("Unable to obtain server public key!");
