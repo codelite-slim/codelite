@@ -80,6 +80,7 @@
 #include <cpptoken.h>
 #include <wx/bookctrl.h>
 #include <wx/busyinfo.h>
+#include <wx/dcbuffer.h>
 #include <wx/richmsgdlg.h>
 #include <wx/splash.h>
 #include <wx/stc/stc.h>
@@ -850,9 +851,7 @@ clMainFrame::clMainFrame(wxWindow* pParent, wxWindowID id, const wxString& title
 
 #ifdef __WXGTK__
     // Try to detect if this is a Wayland session; we have some Wayland-workaround code
-    wxString sesstype("XDG_SESSION_TYPE"), session_type;
-    wxGetEnv(sesstype, &session_type);
-    m_isWaylandSession = session_type.Lower().Contains("wayland");
+    m_isWaylandSession = clIsWaylandSession();
 #endif
 }
 
@@ -1084,15 +1083,31 @@ void clMainFrame::CreateGUIControls()
         view->Remove(item);
     }
 #endif
-    // Under wxGTK < 2.9.4 we need this wrapper class to avoid warnings on ubuntu when codelite exits
-    m_myMenuBar = new MyMenuBar();
-    m_myMenuBar->Set(mb);
-    SetMenuBar(mb);
 
-#ifdef __WXGTK__
-    bool showMenuBar = clConfig::Get().Read(kConfigShowMenuBar, true);
-    GetMenuBar()->Show(showMenuBar);
+    // Under wxGTK < 2.9.4 we need this wrapper class to avoid warnings on ubuntu when codelite exits
+    m_myMenuBar = new MyMenuBar(mb);
+    SetMenuBar(m_myMenuBar->GetMenuBar());
+
+#ifdef __WXMSW__
+    hMenu = GetMenu(GetHWND());
 #endif
+
+    mb->Bind(wxEVT_PAINT, [mb](wxPaintEvent& event) {
+        wxBufferedPaintDC dc(mb);
+        dc.SetBackground(*wxRED);
+        dc.SetTextForeground(*wxWHITE);
+        dc.DrawRectangle(mb->GetClientRect());
+    });
+
+    mb->Bind(wxEVT_PAINT, [mb](wxPaintEvent& event) {
+        wxBufferedPaintDC dc(mb);
+        dc.SetBackground(*wxRED);
+        dc.SetTextForeground(*wxWHITE);
+        dc.DrawRectangle(mb->GetClientRect());
+    });
+
+    bool showMenuBar = clConfig::Get().Read(kConfigShowMenuBar, true);
+    DoShowMenuBar(showMenuBar);
 
     // Create the status bar
     m_statusBar = new clStatusBar(this, PluginManager::Get());
@@ -1657,7 +1672,7 @@ void clMainFrame::OnAbout(wxCommandEvent& WXUNUSED(event))
     // Misc
     info.SetWebSite("https://codelite.org", _("CodeLite Home"));
     info.SetVersion(CODELITE_VERSION_STRING);
-    info.SetCopyright("Eran Ifrah 2007-2019");
+    info.SetCopyright("Eran Ifrah 2007-2020");
 
     // Load the license file
     wxFileName license(clStandardPaths::Get().GetDataDir(), "LICENSE");
@@ -3120,7 +3135,7 @@ void clMainFrame::OnDebugStopUI(wxUpdateUIEvent& e)
 void clMainFrame::OnDebugManageBreakpointsUI(wxUpdateUIEvent& e)
 {
     if(e.GetId() == XRCID("delete_all_breakpoints")) {
-        std::vector<BreakpointInfo> bps;
+        std::vector<clDebuggerBreakpoint> bps;
         ManagerST::Get()->GetBreakpointsMgr()->GetBreakpoints(bps);
         e.Enable(bps.size());
     } else if(e.GetId() == XRCID("disable_all_breakpoints")) {
@@ -4122,7 +4137,6 @@ void clMainFrame::OnQuickDebug(wxCommandEvent& e)
 
         if(dbgr && !dbgr->IsRunning()) {
 
-            std::vector<BreakpointInfo> bpList;
             wxString exepath = bStartedInDebugMode ? GetTheApp()->GetExeToDebug() : dlg.GetExe();
             wxString wd = bStartedInDebugMode ? GetTheApp()->GetDebuggerWorkingDirectory() : dlg.GetWorkingDirectory();
             wxArrayString cmds = bStartedInDebugMode ? wxArrayString() : dlg.GetStartupCmds();
@@ -4140,9 +4154,6 @@ void clMainFrame::OnQuickDebug(wxCommandEvent& e)
             // read the console command
             dinfo.consoleCommand = EditorConfigST::Get()->GetOptions()->GetProgramConsoleCommand();
 
-            // ManagerST::Get()->GetBreakpointsMgr()->DelAllBreakpoints(); TODO: Reimplement this when
-            // UpdateBreakpoints() updates only alterations, rather than delete/re-enter
-
             wxString dbgname = dinfo.path;
             dbgname = EnvironmentConfig::Instance()->ExpandVariables(dbgname, true);
 
@@ -4150,21 +4161,20 @@ void clMainFrame::OnQuickDebug(wxCommandEvent& e)
             dbgr->SetObserver(ManagerST::Get());
             dbgr->SetDebuggerInformation(dinfo);
 
-            // TODO: Reimplement this when UpdateBreakpoints() updates only alterations, rather than delete/re-enter
-            // GetMainBook()->UpdateBreakpoints();
-
-            // get an updated list of breakpoints
-            ManagerST::Get()->GetBreakpointsMgr()->GetBreakpoints(bpList);
-
             DebuggerStartupInfo startup_info;
             startup_info.debugger = dbgr;
 
             // notify plugins that we're about to start debugging
-            {
-                clDebugEvent eventStarting(wxEVT_DEBUG_STARTING);
-                eventStarting.SetClientData(&startup_info);
-                if(EventNotifier::Get()->ProcessEvent(eventStarting))
-                    return;
+            clDebugEvent eventStarting(wxEVT_DEBUG_STARTING);
+            eventStarting.SetClientData(&startup_info);
+            if(EventNotifier::Get()->ProcessEvent(eventStarting))
+                return;
+
+            clDebuggerBreakpoint::Vec_t bpList;
+            ManagerST::Get()->GetBreakpointsMgr()->GetBreakpoints(bpList);
+            if(!eventStarting.GetBreakpoints().empty()) {
+                // one or some plugins sent us list of breakpoints, use them instead
+                bpList.swap(eventStarting.GetBreakpoints());
             }
 
             wxString tty;
@@ -4266,7 +4276,7 @@ void clMainFrame::OnDebugCoreDump(wxCommandEvent& e)
             dbgr->SetIsRemoteDebugging(false);
 
             // The next two are empty, but are required as parameters
-            std::vector<BreakpointInfo> bpList;
+            std::vector<clDebuggerBreakpoint> bpList;
             wxArrayString cmds;
 
             DebugSessionInfo si;
@@ -5733,9 +5743,7 @@ void clMainFrame::OnToggleMinimalView(wxCommandEvent& event)
         if(m_frameHelper->IsCaptionsVisible()) {
             DoShowCaptions(false);
         }
-#ifndef __WXOSX__
-        GetMenuBar()->Hide();
-#endif
+        DoShowMenuBar(false);
     } else {
         if(!m_frameHelper->IsToolbarShown()) {
             DoShowToolbars(true, false);
@@ -5743,9 +5751,7 @@ void clMainFrame::OnToggleMinimalView(wxCommandEvent& event)
         if(!m_frameHelper->IsCaptionsVisible()) {
             DoShowCaptions(true);
         }
-#ifndef __WXOSX__
-        GetMenuBar()->Show();
-#endif
+        DoShowMenuBar(true);
     }
 
     // Update the various configurations
@@ -5808,7 +5814,7 @@ void clMainFrame::OnDebugRunToCursor(wxCommandEvent& e)
     IDebugger* dbgr = DebuggerMgr::Get().GetActiveDebugger();
     IEditor* editor = clGetManager()->GetActiveEditor();
     if(editor && dbgr && dbgr->IsRunning() && ManagerST::Get()->DbgCanInteract()) {
-        BreakpointInfo bp;
+        clDebuggerBreakpoint bp;
         bp.Create(editor->GetFileName().GetFullPath(), editor->GetCurrentLine() + 1,
                   ManagerST::Get()->GetBreakpointsMgr()->GetNextID());
         bp.bp_type = BP_type_tempbreak;
@@ -6021,16 +6027,16 @@ void clMainFrame::OnInfobarButton(wxCommandEvent& event)
 
 void clMainFrame::OnShowMenuBar(wxCommandEvent& event)
 {
-    bool isShown = GetMenuBar()->IsShown();
-    GetMenuBar()->Show(!isShown);
+    bool currentState = clConfig::Get().Read(kConfigShowMenuBar, true);
+    DoShowMenuBar(!currentState);
     GetSizer()->Layout();
     PostSizeEvent();
-    clConfig::Get().Write(kConfigShowMenuBar, !isShown);
+    clConfig::Get().Write(kConfigShowMenuBar, !currentState);
 }
 
 void clMainFrame::OnShowMenuBarUI(wxUpdateUIEvent& event)
 {
-#ifdef __WXGTK__
+#if defined(__WXGTK__)
     event.Check(GetMenuBar()->IsShown());
 #else
     event.Check(true);
@@ -6088,3 +6094,12 @@ void clMainFrame::ShowBuildMenu(clToolBar* toolbar, wxWindowID buttonID)
     // show the menu
     toolbar->ShowMenuForButton(buttonID, &menu);
 }
+
+void clMainFrame::DoShowMenuBar(bool show)
+{
+#ifdef __WXGTK__
+    GetMenuBar()->Show(show);
+#endif
+}
+
+wxMenuBar* clMainFrame::GetMenuBar() const { return wxFrame::GetMenuBar(); }

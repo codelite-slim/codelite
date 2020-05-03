@@ -26,10 +26,21 @@ JSONItem LSP::InitializeRequest::ToJSON(const wxString& name, IPathConverter::Pt
     } else {
         params.addProperty("rootUri", wxFileSystem::FileNameToURL(GetRootUri()));
     }
-    JSONItem capabilities = JSONItem::createObject("capabilities");
-    params.append(capabilities);
-    JSONItem textDocument = JSONItem::createObject("textDocument");
-    capabilities.append(textDocument);
+    if(!m_initOptions.empty()) {
+        // Parse the JSON string and set it as the 'initializationOptions
+        JSON initializationOptions(m_initOptions);
+        if(initializationOptions.isOk()) {
+            cJSON* pjson = initializationOptions.release();
+            json.addProperty(wxString("initializationOptions"), (cJSON*)pjson);
+        }
+    }
+
+    auto docFormat = params.AddObject("capabilities")
+                         .AddObject("textDocument")
+                         .AddObject("completion")
+                         .AddObject("completionItem")
+                         .AddArray("documentationFormat");
+    docFormat.arrayAppend("plaintext");
     return json;
 }
 

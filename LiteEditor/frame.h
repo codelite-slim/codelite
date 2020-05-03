@@ -120,10 +120,12 @@ class clMainFrame : public wxFrame
 
 #ifndef __WXMSW__
     ZombieReaperPOSIX m_zombieReaper;
+#else
+    HMENU hMenu = nullptr; // Menu bar
 #endif
 
 #ifdef __WXGTK__
-    bool m_isWaylandSession;
+    bool m_isWaylandSession = false;
 #endif
 
     // Maintain a set of core toolbars (i.e. toolbars not owned by any plugin)
@@ -149,13 +151,21 @@ protected:
     void DoShowToolbars(bool show, bool update = true);
     void InitializeLogo();
     void DoFullscreen(bool b);
+    void DoShowMenuBar(bool show);
 
 public:
-    virtual void Raise();
+    void Raise() override;
+
     static clMainFrame* Get();
     static void Initialize(bool loadLastSession);
 
     clInfoBar* GetMessageBar() { return m_infoBar; }
+
+    /**
+     * @brief return the menu bar
+     * @return
+     */
+    wxMenuBar* GetMenuBar() const override;
 
     /**
      * @brief goto anything..
@@ -385,8 +395,7 @@ private:
     void SetNoSavePerspectivePrompt(bool devProfileChanged) { m_noSavePerspectivePrompt = devProfileChanged; }
 
     void DoShowCaptions(bool show);
-    
-    
+
 public:
     void ViewPane(const wxString& paneName, bool checked);
     void ShowOrHideCaptions();

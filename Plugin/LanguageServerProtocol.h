@@ -50,8 +50,9 @@ class WXDLLIMPEXP_SDK LanguageServerProtocol : public ServiceProvider
     wxEvtHandler* m_owner = nullptr;
     LSPNetwork::Ptr_t m_network;
     wxArrayString m_lspCommand;
+    wxString m_initOptions;
     wxString m_workingDirectory;
-    wxStringSet_t m_filesSent;
+    wxStringMap_t m_filesSent;
     wxStringSet_t m_languages;
     wxString m_outputBuffer;
     wxString m_rootFolder;
@@ -86,6 +87,7 @@ protected:
     void OnFindSymbolImpl(clCodeCompletionEvent& event);
     void OnFindSymbol(clCodeCompletionEvent& event);
     void OnFunctionCallTip(clCodeCompletionEvent& event);
+    void OnQuickOutline(clCodeCompletionEvent& event);
 
 protected:
     void DoClear();
@@ -95,6 +97,8 @@ protected:
     void ProcessQueue();
     static wxString GetLanguageId(const wxFileName& fn);
     static wxString GetLanguageId(const wxString& fn);
+    void UpdateFileSent(const wxFileName& filename, const std::string& fileContent);
+    bool IsFileChangedSinceLastParse(const wxFileName& filename, const std::string& fileContent) const;
 
 protected:
     /**
@@ -166,12 +170,14 @@ public:
     /**
      * @brief start LSP server and connect to it (e.g. clangd)
      * @param lspCommand LSP server command
+     * @param initOptions initialization options to pass to the LSP
      * @param connectionString
      * @param rootFolder the LSP root folder (to be passed during the 'initialize' request)
      * @param languages supported languages by this LSP
      */
-    bool Start(const wxArrayString& lspCommand, const wxString& connectionString, const wxString& workingDirectory,
-               const wxString& rootFolder, const wxArrayString& languages, size_t flags);
+    bool Start(const wxArrayString& lspCommand, const wxString& initOptions, const wxString& connectionString,
+               const wxString& workingDirectory, const wxString& rootFolder, const wxArrayString& languages,
+               size_t flags);
 
     /**
      * @brief same as above, but reuse the current parameters
@@ -220,6 +226,11 @@ public:
      * @brief tell the server to close editor
      */
     void CloseEditor(IEditor* editor);
+
+    /**
+     * @brief get list of symbols for the current editor
+     */
+    void DocumentSymbols(IEditor* editor);
 };
 
 #endif // CLLANGUAGESERVER_H

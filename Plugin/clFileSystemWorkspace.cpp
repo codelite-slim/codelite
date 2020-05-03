@@ -259,6 +259,7 @@ void clFileSystemWorkspace::Save(bool parse)
     }
     m_settings.Save(m_filename);
 
+    // Fire 'saved' event
     clCommandEvent eventFileSave(wxEVT_FILE_SAVED);
     eventFileSave.SetFileName(m_filename.GetFullPath());
     eventFileSave.SetString(m_filename.GetFullPath());
@@ -739,7 +740,8 @@ void clFileSystemWorkspace::DoBuild(const wxString& target)
         return;
     }
 
-    if(GetConfig()->IsRemoteEnabled()) {
+    // Check that the remote development is enabled AND remote build
+    if(GetConfig()->IsRemoteEnabled() && GetConfig()->IsRemoteBuild()) {
         // Launch a remote build process
         if(m_remoteBuilder && m_remoteBuilder->IsRunning()) {
             return;
@@ -849,25 +851,42 @@ void clFileSystemWorkspace::OnFileSaved(clCommandEvent& event)
 
     if(GetConfig()->IsRemoteEnabled()) {
         const wxString& filename = event.GetFileName();
-        const wxString& account = GetConfig()->GetRemoteAccount();
-        const wxString& remotePath = GetConfig()->GetRemoteFolder();
 
-        wxString remoteFilePath;
+        // There are 2 cases where we don't want to trigger remote save:
+        // 1. if the file was opened by the sftp plugin, don't attempt to save it remotely
+        // it will be done by the sftp plugin. These files are marked with client data
+        // set with the "sftp" key
+        // 2. if the file is not located under our root folder -> don't attempt to save it
+        bool managedBySftp = false;
+        IEditor* editor = clGetManager()->FindEditor(filename);
+        if(editor && editor->GetClientData("sftp")) {
+            managedBySftp = true;
+        }
 
-        // Make the local file path relative to the workspace location
-        wxFileName fnLocalFile(event.GetFileName());
-        fnLocalFile.MakeRelativeTo(GetFileName().GetPath());
+        wxString rootPath = GetFileName().GetPath();
+        wxString filePath = wxFileName(filename).GetPath();
+        bool doRemoteSave = filePath.StartsWith(rootPath) && !managedBySftp;
 
-        remoteFilePath = fnLocalFile.GetFullPath(wxPATH_UNIX);
-        remoteFilePath.Prepend(remotePath + "/");
-        wxFileName fnRemoteFile(remoteFilePath);
+        if(doRemoteSave) {
+            wxString remoteFilePath;
+            const wxString& account = GetConfig()->GetRemoteAccount();
+            const wxString& remotePath = GetConfig()->GetRemoteFolder();
 
-        // Build the remote filename
-        clSFTPEvent eventSave(wxEVT_SFTP_SAVE_FILE);
-        eventSave.SetAccount(account);
-        eventSave.SetLocalFile(filename);
-        eventSave.SetRemoteFile(fnRemoteFile.GetFullPath(wxPATH_UNIX));
-        EventNotifier::Get()->QueueEvent(eventSave.Clone());
+            // Make the local file path relative to the workspace location
+            wxFileName fnLocalFile(event.GetFileName());
+            fnLocalFile.MakeRelativeTo(GetFileName().GetPath());
+
+            remoteFilePath = fnLocalFile.GetFullPath(wxPATH_UNIX);
+            remoteFilePath.Prepend(remotePath + "/");
+            wxFileName fnRemoteFile(remoteFilePath);
+
+            // Build the remote filename
+            clSFTPEvent eventSave(wxEVT_SFTP_SAVE_FILE);
+            eventSave.SetAccount(account);
+            eventSave.SetLocalFile(filename);
+            eventSave.SetRemoteFile(fnRemoteFile.GetFullPath(wxPATH_UNIX));
+            EventNotifier::Get()->QueueEvent(eventSave.Clone());
+        }
     }
 }
 
@@ -925,29 +944,43 @@ void clFileSystemWorkspace::OnDebug(clDebugEvent& event)
     GetExecutable(exe, args, wd);
 
     // Start the debugger
-    DebugSessionInfo si;
-    si.debuggerPath = MacroManager::Instance()->Expand(dinfo.path, clGetManager(), "");
-    si.exeName = exe;
-    si.cwd = wd;
-    clGetManager()->GetBreakpoints(si.bpList);
+    DebugSessionInfo startup_info;
+    clDebuggerBreakpoint::Vec_t bpList;
+    startup_info.debuggerPath = MacroManager::Instance()->Expand(dinfo.path, clGetManager(), "");
+    startup_info.exeName = exe;
+    startup_info.cwd = wd;
+    startup_info.cmds = ::wxStringTokenize(dinfo.startupCommands, "\r\n", wxTOKEN_STRTOK);
+    clGetManager()->GetBreakpoints(bpList);
+    startup_info.bpList = bpList;
 
     // Start terminal (doesn't do anything under MSW)
     m_debuggerTerminal.Clear();
     m_debuggerTerminal.Launch(dbgr->GetName());
-    si.ttyName = m_debuggerTerminal.GetTty();
-    si.enablePrettyPrinting = dinfo.enableGDBPrettyPrinting;
+    startup_info.ttyName = m_debuggerTerminal.GetTty();
+    startup_info.enablePrettyPrinting = dinfo.enableGDBPrettyPrinting;
+
+    // Fire "starting" event
+    clDebugEvent eventStarting(wxEVT_DEBUG_STARTING);
+    eventStarting.SetClientData(&startup_info);
+    if(EventNotifier::Get()->ProcessEvent(eventStarting))
+        return;
+
+    // Check if any plugins provided us with new breakpoints
+    if(!eventStarting.GetBreakpoints().empty()) {
+        startup_info.bpList.swap(eventStarting.GetBreakpoints());
+    }
 
     // Get toolchain
     CompilerPtr cmp = GetCompiler();
     if(cmp && !cmp->GetTool("Debugger").empty()) {
-        si.debuggerPath = cmp->GetTool("Debugger");
+        startup_info.debuggerPath = cmp->GetTool("Debugger");
     }
-    dbgr->Start(si);
+    dbgr->Start(startup_info);
 
     // Notify that debug session started
     // this will ensure that the debug layout is loaded
     clDebugEvent eventStarted(wxEVT_DEBUG_STARTED);
-    eventStarted.SetClientData(&si);
+    eventStarted.SetClientData(&startup_info);
     EventNotifier::Get()->ProcessEvent(eventStarted);
     // Now run the debuggee
     dbgr->Run(args, "");

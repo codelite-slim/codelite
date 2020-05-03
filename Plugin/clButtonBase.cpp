@@ -6,7 +6,7 @@
 #include <wx/renderer.h>
 #include <wx/settings.h>
 
-#define TEXT_SPACER 10
+#define TEXT_SPACER 5
 
 #ifdef __WXMSW__
 #define BUTTON_RADIUS 0.0
@@ -118,7 +118,9 @@ void clButtonBase::OnLeftUp(wxMouseEvent& event)
     wxRect rect = GetClientRect();
     if(rect.Contains(event.GetPosition())) {
         m_state = eButtonState::kHover;
-        PostClickEvent();
+        wxCommandEvent eventClick(wxEVT_BUTTON);
+        eventClick.SetEventObject(this);
+        GetEventHandler()->ProcessEvent(eventClick);
     } else {
         m_state = eButtonState::kNormal;
     }
@@ -211,7 +213,7 @@ void clButtonBase::Render(wxDC& dc)
     wxRect arrow_rect;
 
     if(GetBitmap().IsOk()) {
-        bitmap_rect.SetX(TEXT_SPACER);
+        bitmap_rect.SetX(2 * TEXT_SPACER);
         bitmap_rect.SetWidth(GetBitmap().GetScaledWidth() + TEXT_SPACER);
         bitmap_rect.SetHeight(GetBitmap().GetScaledHeight());
         bitmap_rect.SetY(0);
@@ -271,7 +273,7 @@ void clButtonBase::Render(wxDC& dc)
         r = r.CenterIn(arrowRect);
 
         wxPoint downCenterPoint = wxPoint(r.GetBottomLeft().x + r.GetWidth() / 2, r.GetBottom());
-        dc.SetPen(wxPen(dropDownColour, 3));
+        dc.SetPen(wxPen(dropDownColour, 2));
         dc.DrawLine(r.GetTopLeft(), downCenterPoint);
         dc.DrawLine(r.GetTopRight(), downCenterPoint);
     }

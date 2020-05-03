@@ -3,10 +3,12 @@
 #include "LSP/DidCloseTextDocumentRequest.h"
 #include "LSP/DidOpenTextDocumentRequest.h"
 #include "LSP/DidSaveTextDocumentRequest.h"
+#include "LSP/DocumentSymbolsRequest.hpp"
 #include "LSP/GotoDeclarationRequest.h"
 #include "LSP/GotoDefinitionRequest.h"
 #include "LSP/GotoImplementationRequest.h"
 #include "LSP/InitializeRequest.h"
+#include "LSP/InitializedNotification.hpp"
 #include "LSP/LSPEvent.h"
 #include "LSP/Request.h"
 #include "LSP/ResponseError.h"
@@ -25,10 +27,12 @@
 #include "ieditor.h"
 #include "imanager.h"
 #include "processreaderthread.h"
+#include "wxmd5.h"
 #include <iomanip>
 #include <sstream>
 #include <wx/filesys.h>
 #include <wx/stc/stc.h>
+#include "environmentconfig.h"
 
 LanguageServerProtocol::LanguageServerProtocol(const wxString& name, eNetworkType netType, wxEvtHandler* owner,
                                                IPathConverter::Ptr_t pathConverter)
@@ -47,6 +51,7 @@ LanguageServerProtocol::LanguageServerProtocol(const wxString& name, eNetworkTyp
     Bind(wxEVT_CC_FIND_SYMBOL_DEFINITION, &LanguageServerProtocol::OnFindSymbolImpl, this);
     Bind(wxEVT_CC_CODE_COMPLETE, &LanguageServerProtocol::OnCodeComplete, this);
     Bind(wxEVT_CC_CODE_COMPLETE_FUNCTION_CALLTIP, &LanguageServerProtocol::OnFunctionCallTip, this);
+    EventNotifier::Get()->Bind(wxEVT_CC_SHOW_QUICK_OUTLINE, &LanguageServerProtocol::OnQuickOutline, this);
 
     // Use sockets here
     switch(netType) {
@@ -73,6 +78,7 @@ LanguageServerProtocol::~LanguageServerProtocol()
     Unbind(wxEVT_CC_FIND_SYMBOL_DEFINITION, &LanguageServerProtocol::OnFindSymbolImpl, this);
     Unbind(wxEVT_CC_CODE_COMPLETE, &LanguageServerProtocol::OnCodeComplete, this);
     Unbind(wxEVT_CC_CODE_COMPLETE_FUNCTION_CALLTIP, &LanguageServerProtocol::OnFunctionCallTip, this);
+    EventNotifier::Get()->Unbind(wxEVT_CC_SHOW_QUICK_OUTLINE, &LanguageServerProtocol::OnQuickOutline, this);
     DoClear();
 }
 
@@ -129,7 +135,9 @@ std::set<wxString> LanguageServerProtocol::GetSupportedLanguages()
 
 void LanguageServerProtocol::QueueMessage(LSP::MessageWithParams::Ptr_t request)
 {
-    if(!IsInitialized()) { return; }
+    if(!IsInitialized()) {
+        return;
+    }
     if(request->As<LSP::CompletionRequest>()) {
         m_lastCompletionRequestId = request->As<LSP::CompletionRequest>()->GetId();
     }
@@ -153,6 +161,7 @@ bool LanguageServerProtocol::DoStart()
     info.SetConnectioString(m_connectionString);
     info.SetFlags(m_createFlags);
     try {
+        EnvSetter env;
         m_network->Open(info);
         return true;
     } catch(clException& e) {
@@ -161,11 +170,13 @@ bool LanguageServerProtocol::DoStart()
     }
 }
 
-bool LanguageServerProtocol::Start(const wxArrayString& lspCommand, const wxString& connectionString,
-                                   const wxString& workingDirectory, const wxString& rootFolder,
-                                   const wxArrayString& languages, size_t flags)
+bool LanguageServerProtocol::Start(const wxArrayString& lspCommand, const wxString& initOptions,
+                                   const wxString& connectionString, const wxString& workingDirectory,
+                                   const wxString& rootFolder, const wxArrayString& languages, size_t flags)
 {
-    if(IsRunning()) { return true; }
+    if(IsRunning()) {
+        return true;
+    }
     DoClear();
     m_languages.clear();
     std::for_each(languages.begin(), languages.end(), [&](const wxString& lang) { m_languages.insert(lang); });
@@ -174,12 +185,15 @@ bool LanguageServerProtocol::Start(const wxArrayString& lspCommand, const wxStri
     m_rootFolder = rootFolder;
     m_connectionString = connectionString;
     m_createFlags = flags;
+    m_initOptions = initOptions;
     return DoStart();
 }
 
 bool LanguageServerProtocol::Start()
 {
-    if(IsRunning()) { return true; }
+    if(IsRunning()) {
+        return true;
+    }
     return DoStart();
 }
 
@@ -207,6 +221,9 @@ bool LanguageServerProtocol::ShouldHandleFile(const wxFileName& fn) const
 {
     wxString lang = GetLanguageId(fn);
     clDEBUG() << "Language ID for file" << fn << "->" << lang;
+    // for(const auto& lang : m_languages) {
+    //     clDEBUG1() << "    LSP supports language:" << lang << clEndl;
+    // }
     return (m_languages.count(lang) != 0);
 }
 
@@ -231,7 +248,9 @@ void LanguageServerProtocol::OnCodeComplete(clCodeCompletionEvent& event)
     event.Skip();
     IEditor* editor = dynamic_cast<IEditor*>(event.GetEditor());
     CHECK_PTR_RET(editor);
-    if(event.IsInsideCommentOrString()) { return; }
+    if(event.IsInsideCommentOrString()) {
+        return;
+    }
     if(CanHandle(editor->GetFileName())) {
         event.Skip(false);
         CodeComplete(editor);
@@ -293,7 +312,6 @@ void LanguageServerProtocol::FindDefinition(IEditor* editor)
         std::string fileContent;
         editor->GetEditorTextRaw(fileContent);
         SendChangeRequest(filename, fileContent);
-
     } else if(m_filesSent.count(filename.GetFullPath()) == 0) {
         std::string fileContent;
         editor->GetEditorTextRaw(fileContent);
@@ -308,11 +326,16 @@ void LanguageServerProtocol::FindDefinition(IEditor* editor)
 void LanguageServerProtocol::SendOpenRequest(const wxFileName& filename, const std::string& fileContent,
                                              const wxString& languageId)
 {
+    if(!IsFileChangedSinceLastParse(filename, fileContent)) {
+        clDEBUG() << GetLogPrefix() << "No changes detected in file:" << filename << clEndl;
+        return;
+    }
     LSP::DidOpenTextDocumentRequest::Ptr_t req =
         LSP::MessageWithParams::MakeRequest(new LSP::DidOpenTextDocumentRequest(filename, fileContent, languageId));
 #ifndef __WXOSX__
     req->SetStatusMessage(wxString() << GetLogPrefix() << " parsing file: " << filename.GetFullName());
 #endif
+    UpdateFileSent(filename, fileContent);
     QueueMessage(req);
 }
 
@@ -331,11 +354,17 @@ void LanguageServerProtocol::SendCloseRequest(const wxFileName& filename)
 
 void LanguageServerProtocol::SendChangeRequest(const wxFileName& filename, const std::string& fileContent)
 {
+    if(!IsFileChangedSinceLastParse(filename, fileContent)) {
+        clDEBUG() << GetLogPrefix() << "No changes detected in file:" << filename << clEndl;
+        return;
+    }
+
     LSP::DidChangeTextDocumentRequest::Ptr_t req =
         LSP::MessageWithParams::MakeRequest(new LSP::DidChangeTextDocumentRequest(filename, fileContent));
 #ifndef __WXOSX__
     req->SetStatusMessage(wxString() << GetLogPrefix() << " re-parsing file: " << filename.GetFullName());
 #endif
+    UpdateFileSent(filename, fileContent);
     QueueMessage(req);
 }
 
@@ -393,7 +422,9 @@ wxString LanguageServerProtocol::GetLogPrefix() const { return wxString() << "["
 void LanguageServerProtocol::OpenEditor(IEditor* editor)
 {
     clDEBUG() << "OpenEditor is called for" << editor->GetFileName();
-    if(!IsInitialized()) { return; }
+    if(!IsInitialized()) {
+        return;
+    }
     if(editor && ShouldHandleFile(editor)) {
         std::string fileContent;
         editor->GetEditorTextRaw(fileContent);
@@ -442,13 +473,14 @@ void LanguageServerProtocol::CodeComplete(IEditor* editor)
     // If the editor is modified, we need to tell the LSP to reparse the source file
     const wxFileName& filename = editor->GetFileName();
 
-    std::string text;
-    editor->GetEditorTextRaw(text);
-
     if(m_filesSent.count(filename.GetFullPath()) && editor->IsModified()) {
-        // we already sent this file over, ask for change parse
+        std::string text;
+        editor->GetEditorTextRaw(text);
         SendChangeRequest(filename, text);
+
     } else if(m_filesSent.count(filename.GetFullPath()) == 0) {
+        std::string text;
+        editor->GetEditorTextRaw(text);
         SendOpenRequest(filename, text, GetLanguageId(filename));
     }
 
@@ -459,7 +491,9 @@ void LanguageServerProtocol::CodeComplete(IEditor* editor)
 
 void LanguageServerProtocol::ProcessQueue()
 {
-    if(m_Queue.IsEmpty()) { return; }
+    if(m_Queue.IsEmpty()) {
+        return;
+    }
     if(m_Queue.IsWaitingReponse()) {
         clDEBUG() << "LSP is busy, will not send message";
         return;
@@ -474,13 +508,19 @@ void LanguageServerProtocol::ProcessQueue()
     m_network->Send(req->ToString(m_pathConverter));
     m_Queue.SetWaitingReponse(true);
     m_Queue.Pop();
-    if(!req->GetStatusMessage().IsEmpty()) { clGetManager()->SetStatusMessage(req->GetStatusMessage(), 1); }
+    if(!req->GetStatusMessage().IsEmpty()) {
+        clGetManager()->SetStatusMessage(req->GetStatusMessage(), 1);
+    }
 }
 
 void LanguageServerProtocol::CloseEditor(IEditor* editor)
 {
-    if(!IsInitialized()) { return; }
-    if(editor && ShouldHandleFile(editor)) { SendCloseRequest(editor->GetFileName()); }
+    if(!IsInitialized()) {
+        return;
+    }
+    if(editor && ShouldHandleFile(editor)) {
+        SendCloseRequest(editor->GetFileName());
+    }
 }
 
 void LanguageServerProtocol::FindDeclaration(IEditor* editor)
@@ -519,7 +559,7 @@ void LanguageServerProtocol::OnNetConnected(clCommandEvent& event)
     // Send the 'initialize' request
     LSP::InitializeRequest::Ptr_t req = LSP::MessageWithParams::MakeRequest(new LSP::InitializeRequest());
     req->As<LSP::InitializeRequest>()->SetRootUri(m_rootFolder);
-
+    req->As<LSP::InitializeRequest>()->SetInitOptions(m_initOptions);
     clDEBUG() << GetLogPrefix() << "Sending initialize request...";
 
     // Temporarly set the state to "kInitialized" so we can send out the "initialize" request
@@ -637,16 +677,34 @@ void LanguageServerProtocol::OnNetDataReady(clCommandEvent& event)
                             m_owner->AddPendingEvent(eventClearDiags);
                         }
                     } else {
-                        clDEBUG() << GetLogPrefix() << "received an unsupported message";
+                        if(res.Has("method") && ((res.Get("method").toString() == "telemetry/event") ||
+                                                 (res.Get("method").toString() == "window/logMessage") ||
+                                                 (res.Get("method").toString() == "window/showMessage"))) {
+                            if(res.Get("params")["Properties"]["stackTrace"].isOk()) {
+                                clDEBUG() << "LSP backtrace" << clEndl;
+                                clDEBUG() << res.Get("params")["Properties"]["stackTrace"].toString() << clEndl;
+                            } else {
+                                clDEBUG() << "received telemetry/log message:" << clEndl;
+                                clDEBUG() << res.Get("params").format() << clEndl;
+                            }
+                        } else {
+                            clDEBUG() << GetLogPrefix() << "received an unsupported message";
+                        }
                     }
                 }
             } else {
                 // we only accept initialization responses here
                 if(res.GetId() == m_initializeRequestID) {
-                    clDEBUG() << GetLogPrefix() << "initialization completed";
-                    m_initializeRequestID = wxNOT_FOUND;
                     m_state = kInitialized;
 
+                    clDEBUG() << GetLogPrefix() << "Sending InitializedNotification" << clEndl;
+                    LSP::InitializedNotification::Ptr_t initNotification =
+                        LSP::MessageWithParams::MakeRequest(new LSP::InitializedNotification());
+                    QueueMessage(initNotification);
+
+                    // Send LSP::InitializedNotification to the server
+                    clDEBUG() << GetLogPrefix() << "initialization completed" << clEndl;
+                    m_initializeRequestID = wxNOT_FOUND;
                     // Notify about this
                     LSPEvent initEvent(wxEVT_LSP_INITIALIZED);
                     initEvent.SetServerName(GetName());
@@ -656,7 +714,9 @@ void LanguageServerProtocol::OnNetDataReady(clCommandEvent& event)
                 }
             }
             // A message was consumed from the buffer, see if we got more messages
-            if(!m_outputBuffer.empty()) { continue; }
+            if(!m_outputBuffer.empty()) {
+                continue;
+            }
         }
         break;
     }
@@ -673,7 +733,9 @@ void LanguageServerProtocol::OnEditorChanged(wxCommandEvent& event)
 {
     event.Skip();
     IEditor* editor = clGetManager()->GetActiveEditor();
-    if(editor) { OpenEditor(editor); }
+    if(editor) {
+        OpenEditor(editor);
+    }
 }
 
 void LanguageServerProtocol::FindImplementation(IEditor* editor)
@@ -708,6 +770,51 @@ void LanguageServerProtocol::FindImplementation(IEditor* editor)
 
 wxString LanguageServerProtocol::GetLanguageId(const wxFileName& fn) { return GetLanguageId(fn.GetFullPath()); }
 
+void LanguageServerProtocol::OnQuickOutline(clCodeCompletionEvent& event)
+{
+    event.Skip();
+    // For now, until we implement the UI, disable this
+    return;
+
+    clDEBUG() << "LanguageServerProtocol::OnQuickOutline called" << clEndl;
+    IEditor* editor = dynamic_cast<IEditor*>(event.GetEditor());
+    CHECK_PTR_RET(editor);
+
+    if(CanHandle(editor->GetFileName())) {
+        // this event is ours to handle
+        event.Skip(false);
+        DocumentSymbols(editor);
+    }
+}
+
+void LanguageServerProtocol::DocumentSymbols(IEditor* editor)
+{
+    CHECK_PTR_RET(editor);
+    CHECK_COND_RET(ShouldHandleFile(editor));
+
+    const wxFileName& filename = editor->GetFileName();
+    LSP::MessageWithParams::Ptr_t req = LSP::MessageWithParams::MakeRequest(new LSP::DocumentSymbolsRequest(filename));
+    QueueMessage(req);
+}
+
+void LanguageServerProtocol::UpdateFileSent(const wxFileName& filename, const std::string& fileContent)
+{
+    wxString checksum = wxMD5::GetDigest(fileContent);
+    m_filesSent.erase(filename.GetFullPath());
+    clDEBUG() << "Caching file:" << filename << "with checksum:" << checksum << clEndl;
+    m_filesSent.insert({ filename.GetFullPath(), checksum });
+}
+
+bool LanguageServerProtocol::IsFileChangedSinceLastParse(const wxFileName& filename,
+                                                         const std::string& fileContent) const
+{
+    if(m_filesSent.count(filename.GetFullPath()) == 0) {
+        return true;
+    }
+    wxString checksum = wxMD5::GetDigest(fileContent);
+    return m_filesSent.find(filename.GetFullPath())->second != checksum;
+}
+
 //===------------------------------------------------------------------
 // LSPRequestMessageQueue
 //===------------------------------------------------------------------
@@ -718,18 +825,24 @@ void LSPRequestMessageQueue::Push(LSP::MessageWithParams::Ptr_t message)
 
     // Messages of type 'Request' require responses from the server
     LSP::Request* req = message->As<LSP::Request>();
-    if(req) { m_pendingReplyMessages.insert({ req->GetId(), message }); }
+    if(req) {
+        m_pendingReplyMessages.insert({ req->GetId(), message });
+    }
 }
 
 void LSPRequestMessageQueue::Pop()
 {
-    if(!m_Queue.empty()) { m_Queue.pop(); }
+    if(!m_Queue.empty()) {
+        m_Queue.pop();
+    }
     SetWaitingReponse(false);
 }
 
 LSP::MessageWithParams::Ptr_t LSPRequestMessageQueue::Get()
 {
-    if(m_Queue.empty()) { return LSP::MessageWithParams::Ptr_t(nullptr); }
+    if(m_Queue.empty()) {
+        return LSP::MessageWithParams::Ptr_t(nullptr);
+    }
     return m_Queue.front();
 }
 
@@ -744,8 +857,12 @@ void LSPRequestMessageQueue::Clear()
 
 LSP::MessageWithParams::Ptr_t LSPRequestMessageQueue::TakePendingReplyMessage(int msgid)
 {
-    if(m_pendingReplyMessages.empty()) { return LSP::MessageWithParams::Ptr_t(nullptr); }
-    if(m_pendingReplyMessages.count(msgid) == 0) { return LSP::MessageWithParams::Ptr_t(nullptr); }
+    if(m_pendingReplyMessages.empty()) {
+        return LSP::MessageWithParams::Ptr_t(nullptr);
+    }
+    if(m_pendingReplyMessages.count(msgid) == 0) {
+        return LSP::MessageWithParams::Ptr_t(nullptr);
+    }
     LSP::MessageWithParams::Ptr_t msgptr = m_pendingReplyMessages[msgid];
     m_pendingReplyMessages.erase(msgid);
     return msgptr;

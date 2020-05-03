@@ -4,6 +4,7 @@
 #include "IWorkspace.h"
 #include "asyncprocess.h"
 #include "clConsoleBase.h"
+#include "clDebuggerBreakpointStore.hpp"
 #include "clDebuggerTerminal.h"
 #include "clFileCache.hpp"
 #include "clFileSystemEvent.h"
