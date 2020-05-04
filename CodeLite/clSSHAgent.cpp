@@ -1,3 +1,4 @@
+#include "asyncprocess.h"
 #include "clSSHAgent.hpp"
 #include "file_logger.h"
 #include "fileutils.h"
@@ -33,7 +34,13 @@ void clSSHAgent::Start()
     PidVec_t P = ProcUtils::PS("ssh-agent");
     if(P.empty()) {
         clDEBUG() << "Could not find a running instance of ssh-agent, starting one...";
-        ::wxExecute(sshAgent.GetFullPath());
+        m_process = ::CreateAsyncProcess(nullptr, sshAgent.GetFullPath(),
+                                         IProcessCreateWithHiddenConsole | IProcessCreateDefault);
+        if(m_process) {
+            clDEBUG() << "Started" << sshAgent << "with process ID:" << m_process->GetPid() << clEndl;
+        } else {
+            clWARNING() << "Failed to start" << sshAgent << "ssh-agent daemon" << clEndl;
+        }
     } else {
         clDEBUG() << "Found ssh-agent running at pid:" << P.begin()->pid;
     }
@@ -49,13 +56,16 @@ void clSSHAgent::Start()
     AddQuotesIfNeeded(command);
     command << " -D -a " << socketPath;
 
-    m_sshAgentPID = ::wxExecute(command);
-    clDEBUG() << "Starting ssh-agent:" << command << ". pid:" << m_sshAgentPID;
-    // Call it on the next event loop, this will give the ssh-agent time to start
-    if(m_sshAgentPID != wxNOT_FOUND) {
+    m_process = ::CreateAsyncProcess(nullptr, command);
+    if(!m_process) {
+        clWARNING() << "Failed to launch" << command << clEndl;
+    } else {
+        clDEBUG() << "Starting ssh-agent:" << command << ". pid:" << m_process->GetPid();
+        // Call it on the next event loop, this will give the ssh-agent time to start
+
         wxString SSH_AUTH_SOCK;
         wxString SSH_AGENT_PID;
-        SSH_AGENT_PID << m_sshAgentPID;
+        SSH_AGENT_PID << m_process->GetPid();
         SSH_AUTH_SOCK = fnSocketPath.GetFullPath();
         ::wxSetEnv("SSH_AUTH_SOCK", SSH_AUTH_SOCK);
         ::wxSetEnv("SSH_AGENT_PID", SSH_AGENT_PID);
@@ -67,16 +77,13 @@ void clSSHAgent::Start()
 
     // Execute ssh-add
     sshAgent.SetFullName("ssh-add");
-    ::wxExecute(sshAgent.GetFullPath());
+    ProcUtils::SafeExecuteCommand(sshAgent.GetFullPath());
 }
 
 void clSSHAgent::Stop()
 {
-#ifdef __WXGTK__
-    if(m_sshAgentPID != wxNOT_FOUND) {
-        wxKill(m_sshAgentPID, wxSIGTERM);
-        clDEBUG() << "Terminated ssh-agent:" << m_sshAgentPID;
-        m_sshAgentPID = wxNOT_FOUND;
+    if(m_process) {
+        m_process->Terminate();
+        wxDELETE(m_process);
     }
-#endif
 }
