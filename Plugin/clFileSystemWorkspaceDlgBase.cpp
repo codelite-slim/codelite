@@ -430,9 +430,6 @@ FSConfigPageBase::FSConfigPageBase(wxWindow* parent, wxWindowID id, const wxPoin
 
     m_stcCCFlags = new wxStyledTextCtrl(m_panelCodeCompletion, wxID_ANY, wxDefaultPosition,
                                         wxDLG_UNIT(m_panelCodeCompletion, wxSize(-1, -1)), 0);
-    m_stcCCFlags->SetToolTip(_("Place your build flags one-per-line here.\nFor "
-                               "example:\n\n-I/home/eran/include\n-I/home/eran/wx/include\n-DSOME=1\n`wx-config "
-                               "--cflags`\n\nThese flags will be used by CodeLite for better\ncode completion"));
     m_stcCCFlags->SetFocus();
     // Configure the fold margin
     m_stcCCFlags->SetMarginType(4, wxSTC_MARGIN_SYMBOL);
@@ -470,15 +467,6 @@ FSConfigPageBase::FSConfigPageBase(wxWindow* parent, wxWindowID id, const wxPoin
     m_stcCCFlags->SetKeyWords(4, wxT(""));
 
     boxSizer22->Add(m_stcCCFlags, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
-
-    m_checkBoxCreateCompileFlags =
-        new wxCheckBox(m_panelCodeCompletion, wxID_ANY, _("Use this content to create a compile_flags.txt file"),
-                       wxDefaultPosition, wxDLG_UNIT(m_panelCodeCompletion, wxSize(-1, -1)), 0);
-    m_checkBoxCreateCompileFlags->SetValue(true);
-    m_checkBoxCreateCompileFlags->SetToolTip(
-        _("Use this content to create a compile_flags.txt file\nThis is useful when using clangd for code completion"));
-
-    boxSizer22->Add(m_checkBoxCreateCompileFlags, 0, wxALL, WXC_FROM_DIP(5));
 
     m_panelEnv =
         new wxPanel(m_notebook, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_notebook, wxSize(-1, -1)), wxTAB_TRAVERSAL);

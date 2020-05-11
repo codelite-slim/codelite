@@ -1,7 +1,7 @@
 #ifndef FSCONFIGPAGE_H
 #define FSCONFIGPAGE_H
-#include "clFileSystemWorkspaceDlgBase.h"
 #include "clFileSystemWorkspaceConfig.hpp"
+#include "clFileSystemWorkspaceDlgBase.h"
 
 class FSConfigPage : public FSConfigPageBase
 {

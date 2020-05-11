@@ -3,6 +3,7 @@
 
 #include "IWorkspace.h"
 #include "asyncprocess.h"
+#include "clBacktickCache.hpp"
 #include "clConsoleBase.h"
 #include "clDebuggerBreakpointStore.hpp"
 #include "clDebuggerTerminal.h"
@@ -35,6 +36,7 @@ class WXDLLIMPEXP_SDK clFileSystemWorkspace : public IWorkspace
     clRemoteBuilder::Ptr_t m_remoteBuilder;
     clDebuggerTerminalPOSIX m_debuggerTerminal;
     int m_execPID = wxNOT_FOUND;
+    clBacktickCache::ptr_t m_backtickCache;
 
 protected:
     void CacheFiles(bool force = false);
@@ -117,6 +119,11 @@ public:
     clFileSystemWorkspaceView* GetView() { return m_view; }
 
     /**
+     * @brief return the backticks cache used by this workspace
+     */
+    clBacktickCache::ptr_t GetBackticksCache() { return m_backtickCache; }
+
+    /**
      * @brief create an empty workspace at a given folder
      * @param folder
      */
@@ -163,6 +170,12 @@ public:
      * Note that this method does NOT update the UI in anyways.
      */
     void FileSystemUpdated();
+
+    /**
+     * @brief create compile_flags.txt for the selected configuration
+     * and fire generation event
+     */
+    void CreateCompileFlagsFile();
 };
 
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_SDK, wxEVT_FS_SCAN_COMPLETED, clFileSystemEvent);

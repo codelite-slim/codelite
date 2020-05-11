@@ -1,9 +1,18 @@
 #include "BuildTargetDlg.h"
 #include "ColoursAndFontsManager.h"
+#include "CompileCommandsGenerator.h"
 #include "FSConfigPage.h"
 #include "build_settings_config.h"
+#include "clFileSystemWorkspace.hpp"
 #include "debuggermanager.h"
+#include "event_notifier.h"
+#include "file_logger.h"
+#include "fileextmanager.h"
+#include "fileutils.h"
+#include "globals.h"
+#include "macromanager.h"
 #include "macros.h"
+#include <wx/msgdlg.h>
 #include <wx/tokenzr.h>
 
 #if USE_SFTP
@@ -35,7 +44,6 @@ FSConfigPage::FSConfigPage(wxWindow* parent, clFileSystemWorkspaceConfig::Ptr_t 
     m_filePickerExe->SetPath(m_config->GetExecutable());
     m_textCtrlArgs->ChangeValue(m_config->GetArgs());
     m_stcEnv->SetText(m_config->GetEnvironment());
-    m_checkBoxCreateCompileFlags->SetValue(m_config->ShouldCreateCompileFlags());
     const auto& targets = m_config->GetBuildTargets();
     for(const auto& vt : targets) {
         wxDataViewItem item = m_dvListCtrlTargets->AppendItem(vt.first);
@@ -109,7 +117,6 @@ void FSConfigPage::Save()
         targets.insert({ name, command });
     }
 
-    m_config->SetCreateCompileFlags(m_checkBoxCreateCompileFlags->IsChecked());
     m_config->SetBuildTargets(targets);
     m_config->SetCompileFlags(::wxStringTokenize(m_stcCCFlags->GetText(), "\r\n", wxTOKEN_STRTOK));
     m_config->SetFileExtensions(m_textCtrlFileExt->GetValue());

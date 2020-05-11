@@ -1,6 +1,8 @@
 #ifndef CLFILESYSTEMWORKSPACEVIEW_HPP
 #define CLFILESYSTEMWORKSPACEVIEW_HPP
 
+#include "clFileSystemWorkspace.hpp"
+#include "clFileSystemWorkspaceConfig.hpp"
 #include "clTreeCtrlPanel.h"
 #include "cl_command_event.h"
 #include "cl_config.h"
@@ -13,12 +15,15 @@ class WXDLLIMPEXP_SDK clFileSystemWorkspaceView : public clTreeCtrlPanel
     wxArrayString m_configs;
     bool m_buildInProgress = false;
     bool m_runInProgress = false;
+    wxArrayString m_selectedFolders;
 
 protected:
     void OnFolderDropped(clCommandEvent& event);
     void OnContextMenu(clContextMenuEvent& event);
     void OnCloseFolder(wxCommandEvent& event);
     void OnSettings(wxCommandEvent& event);
+    void OnAddIncludePath(wxCommandEvent& event);
+    void OnCreateCompileFlagsFile(wxCommandEvent& event);
     void OnShowConfigsMenu(wxCommandEvent& event);
     void OnRefresh(wxCommandEvent& event);
     void OnBuildStarted(clBuildEvent& event);
@@ -28,9 +33,9 @@ protected:
     void OnBuildActiveProjectDropdown(wxCommandEvent& event);
     void OnFindInFilesDismissed(clFindInFilesEvent& event);
     void OnFindInFilesShowing(clFindInFilesEvent& event);
-    
+
 protected:
-    void DoCreateBuildDropDownMenu(wxMenu* menu);
+    void DoAddIncludePathsToConfig(clFileSystemWorkspaceConfig::Ptr_t config, const wxArrayString& paths);
 
 public:
     clFileSystemWorkspaceView(wxWindow* parent, const wxString& viewName);
