@@ -274,11 +274,6 @@ void CompilerLocatorMinGW::CheckRegKey(const wxString& displayName, const wxStri
 void CompilerLocatorMinGW::AddTools(const wxString& binFolder, const wxString& name)
 {
     wxFileName masterPath(binFolder, "");
-    masterPath.RemoveLastDir();
-    if(m_locatedFolders.count(masterPath.GetPath())) {
-        return;
-    }
-
     // Create an empty compiler
     CompilerPtr compiler(new Compiler(NULL));
     compiler->SetCompilerFamily(COMPILER_FAMILY_MINGW);
@@ -287,7 +282,7 @@ void CompilerLocatorMinGW::AddTools(const wxString& binFolder, const wxString& n
     m_locatedFolders.insert(masterPath.GetPath());
 
     if(name.IsEmpty())
-        compiler->SetName("MinGW ( " + masterPath.GetDirs().Last() + " )");
+        compiler->SetName("MinGW ( " + masterPath.GetFullPath() + " )");
     else if(!name.Lower().Contains("mingw"))
         compiler->SetName("MinGW ( " + name + " )");
     else

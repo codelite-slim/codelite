@@ -1396,22 +1396,11 @@ static void ProcessMacros(const wxArrayString& macros, wxStringSet_t& res)
     }
 }
 
-static bool MSWIs64BitCompiler(CompilerPtr compiler)
-{
-    const wxArrayString& macros = compiler->GetBuiltinMacros();
-    for(const wxString& macro : macros) {
-        if(macro.Contains("_WIN64")) {
-            return true;
-        }
-    }
-    return false;
-}
-
 static wxString GetExtraFlags(CompilerPtr compiler)
 {
 #ifdef __WXMSW__
     if(compiler->GetCompilerFamily() == COMPILER_FAMILY_MINGW) {
-        if(MSWIs64BitCompiler(compiler)) {
+        if(compiler->Is64BitCompiler()) {
             return "-target x86_64-pc-windows-gnu";
         } else {
             return "-target i686-pc-windows-gnu";
@@ -1428,7 +1417,7 @@ static void GetExtraFlags(wxString& content, CompilerPtr compiler)
         if(!content.IsEmpty() && !content.EndsWith("\n")) {
             content << "\n";
         }
-        if(MSWIs64BitCompiler(compiler)) {
+        if(compiler->Is64BitCompiler()) {
             content << "-target"
                     << "\n"
                     << "x86_64-pc-windows-gnu"
@@ -1488,6 +1477,8 @@ wxString Project::GetCompileLineForCXXFile(const wxStringMap_t& compilersGlobalP
     wxArrayString inclPathArr = ::wxStringTokenize(inclPathAsString, ";", wxTOKEN_STRTOK);
     for(size_t i = 0; i < inclPathArr.GetCount(); ++i) {
         wxString incl_path = inclPathArr.Item(i);
+        // Expand macros that may have been used in this include path
+        incl_path = MacroManager::Instance()->Expand(incl_path, clGetManager(), GetName(), buildConf->GetName());
         incl_path.Trim().Trim(false);
         if(incl_path.IsEmpty())
             continue;
@@ -1552,44 +1543,43 @@ wxString Project::DoExpandBacktick(const wxString& backtick)
 }
 
 void Project::CreateCompileCommandsJSON(JSONItem& compile_commands, const wxStringMap_t& compilersGlobalPaths,
-                                        bool compile_flags_only)
+                                        bool createCompileFlagsTxt)
 {
-    BuildConfigPtr buildConf = GetBuildConfiguration();
-    wxString cFilePattern = GetCompileLineForCXXFile(compilersGlobalPaths, buildConf, "$FileName", false);
-    wxString cxxFilePattern = GetCompileLineForCXXFile(compilersGlobalPaths, buildConf, "$FileName", true);
 
-    CreateCompileFlags(compilersGlobalPaths);
-    if(compile_flags_only) {
-        return;
-    }
-
-    wxString workingDirectory = m_fileName.GetPath();
-    std::for_each(m_filesTable.begin(), m_filesTable.end(), [&](const FilesMap_t::value_type& vt) {
-        const wxString& fullpath = vt.second->GetFilename();
-        wxString compilePattern;
-        FileExtManager::FileType fileType = FileExtManager::GetType(fullpath);
-        if(fileType == FileExtManager::TypeSourceC) {
-            compilePattern = cFilePattern;
-        } else if(fileType == FileExtManager::TypeSourceCpp) {
-            compilePattern = cxxFilePattern;
-        } else if(fileType == FileExtManager::TypeHeader) {
-            compilePattern = cxxFilePattern;
-        }
-
-        if(!compilePattern.IsEmpty()) {
-            wxString file_name = fullpath;
-            if(file_name.Contains(" ")) {
-                file_name.Prepend("\"").Append("\"");
+    if(createCompileFlagsTxt) {
+        CreateCompileFlags(compilersGlobalPaths);
+    } else {
+        BuildConfigPtr buildConf = GetBuildConfiguration();
+        wxString cFilePattern = GetCompileLineForCXXFile(compilersGlobalPaths, buildConf, "$FileName", false);
+        wxString cxxFilePattern = GetCompileLineForCXXFile(compilersGlobalPaths, buildConf, "$FileName", true);
+        wxString workingDirectory = m_fileName.GetPath();
+        std::for_each(m_filesTable.begin(), m_filesTable.end(), [&](const FilesMap_t::value_type& vt) {
+            const wxString& fullpath = vt.second->GetFilename();
+            wxString compilePattern;
+            FileExtManager::FileType fileType = FileExtManager::GetType(fullpath);
+            if(fileType == FileExtManager::TypeSourceC) {
+                compilePattern = cFilePattern;
+            } else if(fileType == FileExtManager::TypeSourceCpp) {
+                compilePattern = cxxFilePattern;
+            } else if(fileType == FileExtManager::TypeHeader) {
+                compilePattern = cxxFilePattern;
             }
-            compilePattern.Replace("$FileName", file_name);
 
-            JSONItem json = JSONItem::createObject();
-            json.addProperty("file", fullpath);
-            json.addProperty("directory", workingDirectory);
-            json.addProperty("command", compilePattern);
-            compile_commands.append(json);
-        }
-    });
+            if(!compilePattern.IsEmpty()) {
+                wxString file_name = fullpath;
+                if(file_name.Contains(" ")) {
+                    file_name.Prepend("\"").Append("\"");
+                }
+                compilePattern.Replace("$FileName", file_name);
+
+                JSONItem json = JSONItem::createObject();
+                json.addProperty("file", fullpath);
+                json.addProperty("directory", workingDirectory);
+                json.addProperty("command", compilePattern);
+                compile_commands.append(json);
+            }
+        });
+    }
 }
 
 BuildConfigPtr Project::GetBuildConfiguration(const wxString& configName) const
