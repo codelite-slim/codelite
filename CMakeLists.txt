@@ -547,13 +547,8 @@ if ( MAKE_RPM_SLIM )
     set(CPACK_RPM_PACKAGE_REQUIRES          "gcc72, gcc72-c++, git, sqlite, gtk2, cmake")
     set(CPACK_GENERATOR                     "RPM")
     set(CPACK_RPM_PACKAGE_NAME              "CodeLite")
-<<<<<<< HEAD
     set(CPACK_RPM_FILE_NAME                 "CodeLite-slim-15.0.0-gtk2-x86_64.rpm")
     set(CPACK_RPM_PACKAGE_VERSION           "15.0.0-${GTKNAME}")
-=======
-    set(CPACK_RPM_FILE_NAME                 "CodeLite-slim-14.0.2-gtk2-x86_64.rpm")
-    set(CPACK_RPM_PACKAGE_VERSION           "14.0.2-${GTKNAME}")
->>>>>>> Version bumped to 14.0.2
     set(CPACK_PACKAGE_CONTACT               "Eran Ifrah <eran@codelite.org>")
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY   "C/C++ IDE (Integrated Development Environment)")
     set(CPACK_PACKAGE_VENDOR                "Eran Ifrah")
